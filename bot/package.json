@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "discord.js": "^14",
-    "dotenv": "^16"
+    "dotenv": "^16",
+    "openai": "^6.37.0"
   }
 }

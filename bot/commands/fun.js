@@ -58,26 +58,26 @@ const rpsChoices = ["rock", "paper", "scissors"];
 const rpsWins = { rock: "scissors", paper: "rock", scissors: "paper" };
 
 module.exports = {
-  handle(msg, command, args) {
-    switch (command) {
-      case "!weirdguy": {
+  handle(msg, baseCommand, args, p = "!") {
+    switch (baseCommand) {
+      case "weirdguy": {
         msg.reply(weirdguyReplies[Math.floor(Math.random() * weirdguyReplies.length)]);
         break;
       }
 
-      case "!8ball": {
-        if (!args.length) return msg.reply("Ask me a question! e.g. `!8ball will I win?`");
+      case "8ball": {
+        if (!args.length) return msg.reply(`Ask me a question! e.g. \`${p}8ball will I win?\``);
         const reply = eightBallReplies[Math.floor(Math.random() * eightBallReplies.length)];
         msg.reply(`🎱 **${reply}**`);
         break;
       }
 
-      case "!coinflip": {
+      case "coinflip": {
         msg.reply(Math.random() < 0.5 ? "🪙 **Heads!**" : "🪙 **Tails!**");
         break;
       }
 
-      case "!roll": {
+      case "roll": {
         const sides = parseInt(args[0]) || 6;
         if (sides < 2 || sides > 1000) return msg.reply("Pick a number of sides between 2 and 1000.");
         const result = Math.floor(Math.random() * sides) + 1;
@@ -85,29 +85,29 @@ module.exports = {
         break;
       }
 
-      case "!joke": {
+      case "joke": {
         msg.reply(jokes[Math.floor(Math.random() * jokes.length)]);
         break;
       }
 
-      case "!roast": {
+      case "roast": {
         const target = msg.mentions.members?.first();
         const name = target ? target.displayName : "yourself";
         msg.reply(`🔥 ${name}: ${roasts[Math.floor(Math.random() * roasts.length)]}`);
         break;
       }
 
-      case "!compliment": {
+      case "compliment": {
         const target = msg.mentions.members?.first();
         const name = target ? `<@${target.id}>` : msg.author.username;
         msg.reply(`💖 ${name}: ${compliments[Math.floor(Math.random() * compliments.length)]}`);
         break;
       }
 
-      case "!rps": {
+      case "rps": {
         const userChoice = args[0]?.toLowerCase();
         if (!rpsChoices.includes(userChoice)) {
-          return msg.reply("Choose `rock`, `paper`, or `scissors`! e.g. `!rps rock`");
+          return msg.reply(`Choose \`rock\`, \`paper\`, or \`scissors\`! e.g. \`${p}rps rock\``);
         }
         const botChoice = rpsChoices[Math.floor(Math.random() * rpsChoices.length)];
         let result;
@@ -118,32 +118,36 @@ module.exports = {
         break;
       }
 
-      case "!help": {
+      case "help": {
         msg.reply([
           "**🎮 Fun Commands**",
-          "`!weirdguy` — wake me up",
-          "`!8ball [question]` — ask the magic 8 ball",
-          "`!coinflip` — heads or tails",
-          "`!roll [sides]` — roll a dice (default d6)",
-          "`!joke` — hear a joke",
-          "`!roast [@user]` — get roasted",
-          "`!compliment [@user]` — feel good for once",
-          "`!rps [rock/paper/scissors]` — play me",
+          `\`${p}weirdguy\` — wake me up`,
+          `\`${p}8ball [question]\` — ask the magic 8 ball`,
+          `\`${p}coinflip\` — heads or tails`,
+          `\`${p}roll [sides]\` — roll a dice (default d6)`,
+          `\`${p}joke\` — hear a joke`,
+          `\`${p}roast [@user]\` — get roasted`,
+          `\`${p}compliment [@user]\` — feel good for once`,
+          `\`${p}rps [rock/paper/scissors]\` — play me`,
+          "",
+          "**🤖 AI Chat**",
+          `Mention me (@Weird Guy) and I'll actually respond with AI — I remember the last few messages too.`,
           "",
           "**🛡️ Admin Commands** *(requires Administrator)*",
-          "`!kick @user [reason]`",
-          "`!ban @user [reason]`",
-          "`!mute @user [minutes]`",
-          "`!unmute @user`",
-          "`!warn @user [reason]` — auto-actions at thresholds:",
+          `\`${p}setprefix [char]\` — change command prefix`,
+          `\`${p}kick @user [reason]\``,
+          `\`${p}ban @user [reason]\``,
+          `\`${p}mute @user [minutes]\``,
+          `\`${p}unmute @user\``,
+          `\`${p}warn @user [reason]\` — auto-actions at thresholds:`,
           "　　🔇 3 warnings → mute 10 min",
           "　　👢 5 warnings → kick",
           "　　🔨 7 warnings → ban",
-          "`!warnings @user`",
-          "`!clearwarns @user`",
-          "`!clear [amount]` — delete messages (max 100)",
-          "`!slowmode [seconds]` — set channel slowmode",
-          "`!lock` / `!unlock` — lock or unlock a channel",
+          `\`${p}warnings @user\``,
+          `\`${p}clearwarns @user\``,
+          `\`${p}clear [amount]\` — delete messages (max 100)`,
+          `\`${p}slowmode [seconds]\` — set channel slowmode`,
+          `\`${p}lock\` / \`${p}unlock\` — lock or unlock a channel`,
         ].join("\n"));
         break;
       }

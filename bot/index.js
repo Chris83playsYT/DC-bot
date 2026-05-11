@@ -4,6 +4,8 @@ require("dotenv").config();
 const fun = require("./commands/fun");
 const admin = require("./commands/admin");
 const automod = require("./handlers/automod");
+const ai = require("./handlers/ai");
+const prefix = require("./handlers/prefix");
 
 const client = new Client({
   intents: [
@@ -14,17 +16,6 @@ const client = new Client({
   ],
   partials: [Partials.Message, Partials.Channel],
 });
-
-const PERSONALITY_REPLIES = [
-  "yeah? what do you want from me 😭",
-  "ok ok I'm listening… maybe.",
-  "bro just said my name like I owe them something 💀",
-  "👁️ I heard that.",
-  "you called? I was busy doing nothing important.",
-  "don't @ me unless it's serious 😤",
-  "…yes? speak.",
-  "oh so NOW you want to talk to me 😒",
-];
 
 client.on("clientReady", () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -38,21 +29,24 @@ client.on("messageCreate", async (msg) => {
   const blocked = await automod.check(msg);
   if (blocked) return;
 
-  const content = msg.content.trim();
-  const parts = content.split(/\s+/);
-  const command = parts[0].toLowerCase();
-  const args = parts.slice(1);
-
-  if (content.includes(`<@${client.user.id}>`)) {
-    const reply = PERSONALITY_REPLIES[Math.floor(Math.random() * PERSONALITY_REPLIES.length)];
-    msg.reply(reply);
+  if (msg.content.includes(`<@${client.user.id}>`)) {
+    await ai.reply(msg);
     return;
   }
 
-  const handled = fun.handle(msg, command, args);
+  const guildPrefix = prefix.get(msg.guild.id);
+  const content = msg.content.trim();
+
+  if (!content.startsWith(guildPrefix)) return;
+
+  const parts = content.slice(guildPrefix.length).trim().split(/\s+/);
+  const baseCommand = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  const handled = fun.handle(msg, baseCommand, args, guildPrefix);
   if (handled) return;
 
-  await admin.handle(msg, command, args);
+  await admin.handle(msg, guildPrefix + baseCommand, args, prefix);
 });
 
 client.on("guildMemberAdd", (member) => {
