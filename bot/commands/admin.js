@@ -22,6 +22,32 @@ function clearWarnings(guildId, userId) {
   warnings.delete(key);
 }
 
+const THRESHOLDS = [
+  { at: 3, action: "mute",  label: "auto-muted for 10 minutes",  emoji: "🔇" },
+  { at: 5, action: "kick",  label: "auto-kicked from the server", emoji: "👢" },
+  { at: 7, action: "ban",   label: "auto-banned from the server", emoji: "🔨" },
+];
+
+async function applyThreshold(channel, target, total) {
+  const threshold = THRESHOLDS.slice().reverse().find(t => total >= t.at);
+  if (!threshold) return;
+
+  try {
+    if (threshold.action === "mute") {
+      await target.timeout(10 * 60 * 1000, `Auto-mod: reached ${total} warnings`);
+    } else if (threshold.action === "kick" && target.kickable) {
+      await target.kick(`Auto-mod: reached ${total} warnings`);
+    } else if (threshold.action === "ban" && target.bannable) {
+      await target.ban({ reason: `Auto-mod: reached ${total} warnings` });
+    }
+    channel.send(
+      `${threshold.emoji} **${target.displayName}** has reached **${total} warnings** and has been **${threshold.label}** automatically.`
+    );
+  } catch {
+    channel.send(`⚠️ Could not apply automatic action — I may lack the permissions or role rank.`);
+  }
+}
+
 module.exports = {
   async handle(msg, command, args) {
     if (!isAdmin(msg.member)) {
@@ -77,10 +103,12 @@ module.exports = {
         if (!target) return msg.reply("Mention a member to warn. e.g. `!warn @user bad behavior`");
         const reason = args.slice(1).join(" ") || "No reason provided";
         const total = addWarning(msg.guild.id, target.id, reason, msg.author.tag);
-        msg.channel.send(`⚠️ **${target.displayName}** has been warned. Reason: ${reason}\nTotal warnings: **${total}**`);
-        if (total >= 3) {
-          msg.channel.send(`⚠️ **${target.displayName}** now has **${total} warnings**. Consider taking further action.`);
-        }
+        msg.channel.send(
+          `⚠️ **${target.displayName}** has been warned. Reason: ${reason}\n` +
+          `Total warnings: **${total}** — ` +
+          `🔇 mute at 3 · 👢 kick at 5 · 🔨 ban at 7`
+        );
+        await applyThreshold(msg.channel, target, total);
         break;
       }
 
