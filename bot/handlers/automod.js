@@ -1,25 +1,23 @@
+const config = require("./config");
+
 const spamTracker = new Map();
-
-const BAD_WORDS = ["slur1", "slur2", "badword1"];
-
 const INVITE_PATTERN = /(discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\/[a-zA-Z0-9]+/i;
-
-const SPAM_LIMIT = 5;
-const SPAM_WINDOW_MS = 4000;
-const NEW_ACCOUNT_DAYS = 7;
 
 function isAdmin(member) {
   return member.permissions.has("Administrator");
 }
 
-async function checkSpam(msg) {
+async function checkSpam(msg, cfg) {
+  const am = cfg.automod;
+  if (!am.antiSpam) return false;
+
   const key = `${msg.guild.id}:${msg.author.id}`;
   const now = Date.now();
-  const timestamps = (spamTracker.get(key) || []).filter(t => now - t < SPAM_WINDOW_MS);
+  const timestamps = (spamTracker.get(key) || []).filter(t => now - t < am.spamWindowMs);
   timestamps.push(now);
   spamTracker.set(key, timestamps);
 
-  if (timestamps.length >= SPAM_LIMIT) {
+  if (timestamps.length >= am.spamLimit) {
     await msg.delete().catch(() => {});
     const warning = await msg.channel.send(`⚠️ <@${msg.author.id}> slow down! You're sending messages too fast.`);
     await msg.member.timeout(60_000, "Auto-mod: spam detected").catch(() => {});
@@ -30,7 +28,8 @@ async function checkSpam(msg) {
   return false;
 }
 
-async function checkInvites(msg) {
+async function checkInvites(msg, cfg) {
+  if (!cfg.automod.blockInvites) return false;
   if (!INVITE_PATTERN.test(msg.content)) return false;
   await msg.delete().catch(() => {});
   const warning = await msg.channel.send(`🚫 <@${msg.author.id}> Posting invite links is not allowed here.`);
@@ -38,9 +37,10 @@ async function checkInvites(msg) {
   return true;
 }
 
-async function checkBadWords(msg) {
+async function checkBadWords(msg, cfg) {
+  if (!cfg.automod.filterBadWords) return false;
   const lower = msg.content.toLowerCase();
-  const found = BAD_WORDS.some(w => lower.includes(w));
+  const found = cfg.badWords.some(w => lower.includes(w));
   if (!found) return false;
   await msg.delete().catch(() => {});
   const warning = await msg.channel.send(`🚫 <@${msg.author.id}> Watch your language.`);
@@ -48,14 +48,12 @@ async function checkBadWords(msg) {
   return true;
 }
 
-async function checkNewAccount(msg) {
-  const accountAge = Date.now() - msg.author.createdTimestamp;
-  const days = accountAge / (1000 * 60 * 60 * 24);
-  if (days < NEW_ACCOUNT_DAYS && INVITE_PATTERN.test(msg.content)) {
+async function checkNewAccount(msg, cfg) {
+  if (!cfg.automod.newAccountProtection) return false;
+  const days = (Date.now() - msg.author.createdTimestamp) / (1000 * 60 * 60 * 24);
+  if (days < cfg.automod.newAccountDays && INVITE_PATTERN.test(msg.content)) {
     await msg.delete().catch(() => {});
-    const warning = await msg.channel.send(
-      `⚠️ <@${msg.author.id}> New accounts cannot post invite links.`
-    );
+    const warning = await msg.channel.send(`⚠️ <@${msg.author.id}> New accounts cannot post invite links.`);
     setTimeout(() => warning.delete().catch(() => {}), 5000);
     return true;
   }
@@ -68,13 +66,14 @@ module.exports = {
     if (isAdmin(msg.member)) return false;
     if (msg.author.bot) return false;
 
-    if (await checkNewAccount(msg)) return true;
-    if (await checkInvites(msg)) return true;
-    if (await checkBadWords(msg)) return true;
-    if (await checkSpam(msg)) return true;
+    const cfg = config.get(msg.guild.id);
+    if (!cfg.automod.enabled) return false;
+
+    if (await checkNewAccount(msg, cfg)) return true;
+    if (await checkInvites(msg, cfg)) return true;
+    if (await checkBadWords(msg, cfg)) return true;
+    if (await checkSpam(msg, cfg)) return true;
 
     return false;
   },
-
-  BAD_WORDS,
 };

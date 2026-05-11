@@ -1,3 +1,5 @@
+const poll = require("./poll");
+
 const eightBallReplies = [
   "It is certain.", "It is decidedly so.", "Without a doubt.",
   "Yes, definitely.", "You may rely on it.", "As I see it, yes.",
@@ -58,7 +60,7 @@ const rpsChoices = ["rock", "paper", "scissors"];
 const rpsWins = { rock: "scissors", paper: "rock", scissors: "paper" };
 
 module.exports = {
-  handle(msg, baseCommand, args, p = "!") {
+  async handle(msg, baseCommand, args, p = "!") {
     switch (baseCommand) {
       case "weirdguy": {
         msg.reply(weirdguyReplies[Math.floor(Math.random() * weirdguyReplies.length)]);
@@ -118,6 +120,11 @@ module.exports = {
         break;
       }
 
+      case "poll": {
+        await poll.handle(msg, args);
+        break;
+      }
+
       case "help": {
         msg.reply([
           "**🎮 Fun Commands**",
@@ -129,25 +136,21 @@ module.exports = {
           `\`${p}roast [@user]\` — get roasted`,
           `\`${p}compliment [@user]\` — feel good for once`,
           `\`${p}rps [rock/paper/scissors]\` — play me`,
+          `\`${p}poll "Question" [Option1 Option2 ...]\` — create a reaction poll`,
           "",
           "**🤖 AI Chat**",
-          `Mention me (@Weird Guy) and I'll actually respond with AI — I remember the last few messages too.`,
+          "Mention @Weird Guy and I'll respond — I remember your last 8 messages.",
           "",
-          "**🛡️ Admin Commands** *(requires Administrator)*",
-          `\`${p}setprefix [char]\` — change command prefix`,
-          `\`${p}kick @user [reason]\``,
-          `\`${p}ban @user [reason]\``,
-          `\`${p}mute @user [minutes]\``,
-          `\`${p}unmute @user\``,
-          `\`${p}warn @user [reason]\` — auto-actions at thresholds:`,
-          "　　🔇 3 warnings → mute 10 min",
-          "　　👢 5 warnings → kick",
-          "　　🔨 7 warnings → ban",
-          `\`${p}warnings @user\``,
-          `\`${p}clearwarns @user\``,
-          `\`${p}clear [amount]\` — delete messages (max 100)`,
-          `\`${p}slowmode [seconds]\` — set channel slowmode`,
-          `\`${p}lock\` / \`${p}unlock\` — lock or unlock a channel`,
+          "**🛡️ Admin Commands** *(Administrator or bot owner)*",
+          `\`${p}setprefix <char>\` — change command prefix`,
+          `\`${p}kick / ban / mute / unmute @user\``,
+          `\`${p}warn @user [reason]\` — warn with auto-actions at thresholds`,
+          `\`${p}warnings / clearwarns @user\``,
+          `\`${p}clear [1-100]\` — bulk delete`,
+          `\`${p}slowmode [seconds]\``,
+          `\`${p}lock / unlock\` — lock a channel`,
+          `\`${p}aiclear [@user]\` — clear AI conversation history`,
+          `\`${p}config\` — view/change bot settings`,
         ].join("\n"));
         break;
       }

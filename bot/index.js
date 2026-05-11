@@ -3,9 +3,10 @@ require("dotenv").config();
 
 const fun = require("./commands/fun");
 const admin = require("./commands/admin");
+const configure = require("./commands/configure");
 const automod = require("./handlers/automod");
 const ai = require("./handlers/ai");
-const prefix = require("./handlers/prefix");
+const config = require("./handlers/config");
 
 const client = new Client({
   intents: [
@@ -13,13 +14,26 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMessageReactions,
   ],
-  partials: [Partials.Message, Partials.Channel],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
 });
 
-client.on("clientReady", () => {
+client.on("clientReady", async () => {
   console.log(`Logged in as ${client.user.tag}`);
   client.user.setActivity("the server 👀", { type: 3 });
+
+  try {
+    await client.application.fetch();
+    const owner = client.application.owner;
+    const ownerId = owner?.id ?? owner?.ownerId;
+    if (ownerId) {
+      config.setOwner(ownerId);
+      console.log(`Bot owner set: ${ownerId}`);
+    }
+  } catch (err) {
+    console.error("Could not fetch bot owner:", err?.message);
+  }
 });
 
 client.on("messageCreate", async (msg) => {
@@ -35,7 +49,7 @@ client.on("messageCreate", async (msg) => {
       return;
     }
 
-    const guildPrefix = prefix.get(msg.guild.id);
+    const guildPrefix = config.getPrefix(msg.guild.id);
     const content = msg.content.trim();
 
     if (!content.startsWith(guildPrefix)) return;
@@ -44,26 +58,29 @@ client.on("messageCreate", async (msg) => {
     const baseCommand = parts[0].toLowerCase();
     const args = parts.slice(1);
 
-    const handled = fun.handle(msg, baseCommand, args, guildPrefix);
+    if (baseCommand === "config") {
+      await configure.handle(msg, args);
+      return;
+    }
+
+    const handled = await fun.handle(msg, baseCommand, args, guildPrefix);
     if (handled) return;
 
-    await admin.handle(msg, guildPrefix + baseCommand, args, prefix);
+    await admin.handle(msg, guildPrefix + baseCommand, args, config);
   } catch (err) {
     console.error("messageCreate error:", err?.message);
   }
 });
 
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled rejection:", err?.message ?? err);
-});
-
 client.on("guildMemberAdd", (member) => {
   const channel = member.guild.systemChannel;
   if (channel) {
-    channel.send(
-      `👀 **${member.displayName}** just joined. welcome I guess. don't make it weird.`
-    );
+    channel.send(`👀 **${member.displayName}** just joined. welcome I guess. don't make it weird.`);
   }
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err?.message ?? err);
 });
 
 client.login(process.env.TOKEN);

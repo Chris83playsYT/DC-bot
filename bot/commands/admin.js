@@ -1,12 +1,13 @@
+const config = require("../handlers/config");
+
 const warnings = new Map();
 
 function isAdmin(member) {
-  return member.permissions.has("Administrator");
+  return member.permissions.has("Administrator") || config.isOwner(member.id);
 }
 
 function getWarnings(guildId, userId) {
-  const key = `${guildId}:${userId}`;
-  return warnings.get(key) || [];
+  return warnings.get(`${guildId}:${userId}`) || [];
 }
 
 function addWarning(guildId, userId, reason, moderator) {
@@ -18,65 +19,66 @@ function addWarning(guildId, userId, reason, moderator) {
 }
 
 function clearWarnings(guildId, userId) {
-  const key = `${guildId}:${userId}`;
-  warnings.delete(key);
+  warnings.delete(`${guildId}:${userId}`);
 }
 
-const THRESHOLDS = [
-  { at: 3, action: "mute",  label: "auto-muted for 10 minutes",  emoji: "🔇" },
-  { at: 5, action: "kick",  label: "auto-kicked from the server", emoji: "👢" },
-  { at: 7, action: "ban",   label: "auto-banned from the server", emoji: "🔨" },
-];
-
-async function applyThreshold(channel, target, total) {
-  const threshold = THRESHOLDS.slice().reverse().find(t => total >= t.at);
+async function applyThreshold(channel, target, total, guildId) {
+  const thresholds = config.get(guildId).warnThresholds;
+  const threshold = [...thresholds].reverse().find(t => total >= t.at);
   if (!threshold) return;
 
   try {
     if (threshold.action === "mute") {
-      await target.timeout(10 * 60 * 1000, `Auto-mod: reached ${total} warnings`);
+      await target.timeout(threshold.durationMs, `Auto-mod: reached ${total} warnings`);
     } else if (threshold.action === "kick" && target.kickable) {
       await target.kick(`Auto-mod: reached ${total} warnings`);
     } else if (threshold.action === "ban" && target.bannable) {
       await target.ban({ reason: `Auto-mod: reached ${total} warnings` });
     }
     channel.send(
-      `${threshold.emoji} **${target.displayName}** has reached **${total} warnings** and has been **${threshold.label}** automatically.`
+      `${threshold.emoji} **${target.displayName}** reached **${total} warnings** and has been **${threshold.label}** automatically.`
     );
   } catch {
-    channel.send(`⚠️ Could not apply automatic action — I may lack the permissions or role rank.`);
+    channel.send(`⚠️ Could not apply automatic action — check my role rank and permissions.`);
   }
 }
 
+const ADMIN_COMMANDS = ["kick","ban","mute","unmute","warn","warnings","clearwarns","clear","slowmode","lock","unlock","setprefix","aiclear"];
+
 module.exports = {
-  async handle(msg, command, args, prefixHandler) {
-    const adminCommands = ["kick","ban","mute","unmute","warn","warnings","clearwarns","clear","slowmode","lock","unlock","setprefix"];
-    const prefix = prefixHandler ? prefixHandler.get(msg.guild.id) : "!";
-    const baseCommand = command.slice(prefix.length);
+  async handle(msg, fullCommand, args, prefixHandler) {
+    const prefix = prefixHandler ? prefixHandler.getPrefix(msg.guild.id) : "!";
+    const baseCommand = fullCommand.slice(prefix.length);
 
     if (!isAdmin(msg.member)) {
-      if (adminCommands.includes(baseCommand)) {
+      if (ADMIN_COMMANDS.includes(baseCommand)) {
         msg.reply("🚫 You need **Administrator** permission to use that command.");
         return true;
       }
       return false;
     }
 
-    if (baseCommand === "setprefix") {
-      const newPrefix = args[0];
-      if (!newPrefix || newPrefix.length > 3) {
-        return msg.reply("Provide a prefix (1–3 characters). e.g. `!setprefix .`");
-      }
-      prefixHandler.set(msg.guild.id, newPrefix);
-      msg.reply(`✅ Prefix updated to \`${newPrefix}\`. Commands now use \`${newPrefix}help\`, \`${newPrefix}kick\`, etc.`);
-      return true;
-    }
-
     switch (baseCommand) {
+      case "setprefix": {
+        const p = args[0];
+        if (!p || p.length > 3) return msg.reply("Provide a prefix (1–3 chars). e.g. `!setprefix .`");
+        config.setPrefix(msg.guild.id, p);
+        msg.reply(`✅ Prefix updated to \`${p}\`. Use \`${p}help\` going forward.`);
+        break;
+      }
+
+      case "aiclear": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const ai = require("../handlers/ai");
+        ai.clearHistory(msg.guild.id, target.id);
+        msg.reply(`✅ Cleared AI conversation history for **${target.displayName}**.`);
+        break;
+      }
+
       case "kick": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Mention a member to kick. e.g. \`${prefix}kick @user reason\``);
-        if (!target.kickable) return msg.reply("I can't kick that member — they may have a higher role than me.");
+        if (!target.kickable) return msg.reply("I can't kick that member — they may outrank me.");
         const reason = args.slice(1).join(" ") || "No reason provided";
         await target.kick(reason);
         msg.channel.send(`👢 **${target.displayName}** was kicked. Reason: ${reason}`);
@@ -86,7 +88,7 @@ module.exports = {
       case "ban": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Mention a member to ban. e.g. \`${prefix}ban @user reason\``);
-        if (!target.bannable) return msg.reply("I can't ban that member — they may have a higher role than me.");
+        if (!target.bannable) return msg.reply("I can't ban that member — they may outrank me.");
         const reason = args.slice(1).join(" ") || "No reason provided";
         await target.ban({ reason });
         msg.channel.send(`🔨 **${target.displayName}** was banned. Reason: ${reason}`);
@@ -97,10 +99,9 @@ module.exports = {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Mention a member to mute. e.g. \`${prefix}mute @user 10\``);
         const minutes = parseInt(args[1]) || 10;
-        if (minutes < 1 || minutes > 40320) return msg.reply("Mute duration must be between 1 and 40320 minutes.");
-        const ms = minutes * 60 * 1000;
-        await target.timeout(ms, `Muted by ${msg.author.tag}`);
-        msg.channel.send(`🔇 **${target.displayName}** has been muted for **${minutes} minute(s)**.`);
+        if (minutes < 1 || minutes > 40320) return msg.reply("Duration must be between 1 and 40320 minutes.");
+        await target.timeout(minutes * 60_000, `Muted by ${msg.author.tag}`);
+        msg.channel.send(`🔇 **${target.displayName}** muted for **${minutes} minute(s)**.`);
         break;
       }
 
@@ -114,15 +115,16 @@ module.exports = {
 
       case "warn": {
         const target = msg.mentions.members?.first();
-        if (!target) return msg.reply(`Mention a member to warn. e.g. \`${prefix}warn @user bad behavior\``);
+        if (!target) return msg.reply(`Mention a member to warn. e.g. \`${prefix}warn @user reason\``);
         const reason = args.slice(1).join(" ") || "No reason provided";
         const total = addWarning(msg.guild.id, target.id, reason, msg.author.tag);
+        const thresholds = config.get(msg.guild.id).warnThresholds;
+        const ladder = thresholds.map(t => `${t.emoji} ${t.at}`).join(" · ");
         msg.channel.send(
-          `⚠️ **${target.displayName}** has been warned. Reason: ${reason}\n` +
-          `Total warnings: **${total}** — ` +
-          `🔇 mute at 3 · 👢 kick at 5 · 🔨 ban at 7`
+          `⚠️ **${target.displayName}** warned. Reason: ${reason}\n` +
+          `Total warnings: **${total}** — auto-actions at: ${ladder}`
         );
-        await applyThreshold(msg.channel, target, total);
+        await applyThreshold(msg.channel, target, total, msg.guild.id);
         break;
       }
 
@@ -158,12 +160,10 @@ module.exports = {
       case "slowmode": {
         const seconds = parseInt(args[0]);
         if (isNaN(seconds) || seconds < 0 || seconds > 21600) {
-          return msg.reply(`Provide seconds between 0 and 21600. e.g. \`${prefix}slowmode 5\` (0 to disable)`);
+          return msg.reply(`Provide seconds 0–21600. e.g. \`${prefix}slowmode 5\``);
         }
         await msg.channel.setRateLimitPerUser(seconds);
-        msg.reply(seconds === 0
-          ? "✅ Slowmode disabled."
-          : `✅ Slowmode set to **${seconds} second(s)**.`);
+        msg.reply(seconds === 0 ? "✅ Slowmode disabled." : `✅ Slowmode set to **${seconds}s**.`);
         break;
       }
 
