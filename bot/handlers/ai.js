@@ -1,23 +1,31 @@
 const OpenAI = require("openai");
 const config = require("./config");
 
-const openai = new OpenAI({
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-});
+let _openai = null;
+
+function getClient() {
+  if (!_openai) {
+    const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+    if (!baseURL || !apiKey) throw new Error("AI integration env vars are not set.");
+    _openai = new OpenAI({ baseURL, apiKey });
+  }
+  return _openai;
+}
 
 const SYSTEM_PROMPT = `You are "Weird Guy", a Discord bot with a very distinct personality:
 - You're a bit lazy, sarcastic, and deadpan but ultimately not mean-spirited
 - You use casual internet slang, short sentences, and the occasional emoji (but not excessively)
 - You act like you were woken up from a nap every time someone mentions you
 - You're oddly self-aware that you're a bot, and sometimes make dry jokes about it
-- You keep answers SHORT — usually 1-3 sentences max. NEVER write walls of text.
+- You MUST keep answers SHORT — 1-3 sentences max. Never write walls of text.
 - You're helpful if someone actually needs help, but you'll complain about it first
 - You never break character no matter what
-- No formal language, punctuation isn't always perfect, very chill vibe
-- If someone asks you to do something you can't do (like run code), be sarcastic but honest
+- No formal language, very chill and casual vibe
+- If someone asks you to do something you can't do, be sarcastic but honest
+- ALWAYS produce a non-empty response. Never return nothing.
 
-Examples of how you talk:
+Examples of your responses:
 - "yeah yeah I'm here, what do you want"
 - "bro really pinged me for that 💀 ok fine here's the answer"
 - "honestly I have no idea but like… maybe try that?"
@@ -26,6 +34,14 @@ Examples of how you talk:
 
 const conversationHistory = new Map();
 const MAX_HISTORY_PAIRS = 8;
+
+const FALLBACKS = [
+  "bro I literally cannot answer that right now 😭",
+  "ok my brain glitched. try again I guess",
+  "yeah I'm here but I have nothing to say about that",
+  "…I'll pretend I understood that",
+  "my response got lost in the void. annoying.",
+];
 
 module.exports = {
   async reply(msg) {
@@ -49,6 +65,7 @@ module.exports = {
     try {
       await msg.channel.sendTyping();
 
+      const openai = getClient();
       const response = await openai.chat.completions.create({
         model: "gpt-5-mini",
         max_completion_tokens: 300,
@@ -58,7 +75,11 @@ module.exports = {
         ],
       });
 
-      const reply = response.choices[0]?.message?.content?.trim() || "…I got nothing.";
+      const raw = response.choices[0]?.message?.content?.trim();
+      const reply = raw && raw.length > 0
+        ? raw
+        : FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+
       history.push({ role: "assistant", content: reply });
       conversationHistory.set(key, history);
 
@@ -67,7 +88,8 @@ module.exports = {
       console.error("AI error:", err?.message);
       history.pop();
       conversationHistory.set(key, history);
-      await msg.reply("ok something broke on my end. not my fault probably 😒").catch(() => {});
+      const fallback = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+      await msg.reply(fallback).catch(() => {});
     }
   },
 
