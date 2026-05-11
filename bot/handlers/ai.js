@@ -67,8 +67,8 @@ module.exports = {
 
       const openai = getClient();
       const response = await openai.chat.completions.create({
-        model: "gpt-5-mini",
-        max_completion_tokens: 300,
+        model: "gpt-4o-mini",
+        max_tokens: 300,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           ...history,

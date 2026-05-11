@@ -44,7 +44,7 @@ client.on("messageCreate", async (msg) => {
     const blocked = await automod.check(msg);
     if (blocked) return;
 
-    if (msg.content.includes(`<@${client.user.id}>`)) {
+    if (msg.mentions.has(client.user)) {
       await ai.reply(msg);
       return;
     }
