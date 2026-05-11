@@ -57,11 +57,11 @@ module.exports = {
         ],
       });
 
-      const reply = response.choices[0]?.message?.content ?? "…I got nothing.";
+      const reply = response.choices[0]?.message?.content?.trim() || "…I got nothing.";
       history.push({ role: "assistant", content: reply });
       conversationHistory.set(guildUserId, history);
 
-      msg.reply(reply);
+      await msg.reply(reply);
     } catch (err) {
       console.error("AI error:", err?.message);
       msg.reply("ok something broke on my end. not my fault probably 😒");

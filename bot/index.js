@@ -23,30 +23,38 @@ client.on("clientReady", () => {
 });
 
 client.on("messageCreate", async (msg) => {
-  if (msg.author.bot) return;
-  if (!msg.guild) return;
+  try {
+    if (msg.author.bot) return;
+    if (!msg.guild) return;
 
-  const blocked = await automod.check(msg);
-  if (blocked) return;
+    const blocked = await automod.check(msg);
+    if (blocked) return;
 
-  if (msg.content.includes(`<@${client.user.id}>`)) {
-    await ai.reply(msg);
-    return;
+    if (msg.content.includes(`<@${client.user.id}>`)) {
+      await ai.reply(msg);
+      return;
+    }
+
+    const guildPrefix = prefix.get(msg.guild.id);
+    const content = msg.content.trim();
+
+    if (!content.startsWith(guildPrefix)) return;
+
+    const parts = content.slice(guildPrefix.length).trim().split(/\s+/);
+    const baseCommand = parts[0].toLowerCase();
+    const args = parts.slice(1);
+
+    const handled = fun.handle(msg, baseCommand, args, guildPrefix);
+    if (handled) return;
+
+    await admin.handle(msg, guildPrefix + baseCommand, args, prefix);
+  } catch (err) {
+    console.error("messageCreate error:", err?.message);
   }
+});
 
-  const guildPrefix = prefix.get(msg.guild.id);
-  const content = msg.content.trim();
-
-  if (!content.startsWith(guildPrefix)) return;
-
-  const parts = content.slice(guildPrefix.length).trim().split(/\s+/);
-  const baseCommand = parts[0].toLowerCase();
-  const args = parts.slice(1);
-
-  const handled = fun.handle(msg, baseCommand, args, guildPrefix);
-  if (handled) return;
-
-  await admin.handle(msg, guildPrefix + baseCommand, args, prefix);
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection:", err?.message ?? err);
 });
 
 client.on("guildMemberAdd", (member) => {
