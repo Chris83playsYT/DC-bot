@@ -1,3 +1,5 @@
+const VALID_MODES = ["intellectual", "normal", "crazy", "relaxed", "depressed", "flow"];
+
 const DEFAULT = () => ({
   prefix: "!",
   automod: {
@@ -17,6 +19,7 @@ const DEFAULT = () => ({
     { at: 7, action: "ban",   label: "auto-banned from the server", emoji: "🔨" },
   ],
   aiChat: true,
+  aiMode: "normal",
 });
 
 const configs = new Map();
@@ -24,12 +27,18 @@ const configs = new Map();
 let botOwnerId = null;
 
 module.exports = {
+  VALID_MODES,
+
   setOwner(id) {
     botOwnerId = id;
   },
 
   isOwner(userId) {
     return botOwnerId && userId === botOwnerId;
+  },
+
+  getOwnerId() {
+    return botOwnerId;
   },
 
   get(guildId) {
@@ -45,6 +54,16 @@ module.exports = {
     this.get(guildId).prefix = p;
   },
 
+  setAiMode(guildId, mode) {
+    if (!VALID_MODES.includes(mode)) return false;
+    this.get(guildId).aiMode = mode;
+    return true;
+  },
+
+  getAllGuilds() {
+    return [...configs.entries()];
+  },
+
   format(guildId) {
     const c = this.get(guildId);
     const am = c.automod;
@@ -52,6 +71,7 @@ module.exports = {
       `**⚙️ Bot Configuration**`,
       `**Prefix:** \`${c.prefix}\``,
       `**AI Chat (on mention):** ${c.aiChat ? "✅ on" : "❌ off"}`,
+      `**AI Mode:** \`${c.aiMode}\` — use \`!aimode [mode]\` to change`,
       ``,
       `**🛡️ Auto-Mod**`,
       `Anti-spam: ${am.antiSpam ? "✅" : "❌"} (${am.spamLimit} msgs / ${am.spamWindowMs}ms)`,

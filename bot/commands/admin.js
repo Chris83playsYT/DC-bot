@@ -1,3 +1,4 @@
+const { ChannelType, PermissionsBitField } = require("discord.js");
 const config = require("../handlers/config");
 
 const warnings = new Map();
@@ -26,7 +27,6 @@ async function applyThreshold(channel, target, total, guildId) {
   const thresholds = config.get(guildId).warnThresholds;
   const threshold = [...thresholds].reverse().find(t => total >= t.at);
   if (!threshold) return;
-
   try {
     if (threshold.action === "mute") {
       await target.timeout(threshold.durationMs, `Auto-mod: reached ${total} warnings`);
@@ -43,7 +43,11 @@ async function applyThreshold(channel, target, total, guildId) {
   }
 }
 
-const ADMIN_COMMANDS = ["kick","ban","mute","unmute","warn","warnings","clearwarns","clear","slowmode","lock","unlock","setprefix","aiclear"];
+const ADMIN_COMMANDS = [
+  "kick","ban","mute","unmute","warn","warnings","clearwarns",
+  "clear","purge","slowmode","lock","unlock","lockall","unlockall",
+  "nuke","dehoist","setprefix","aiclear",
+];
 
 module.exports = {
   async handle(msg, fullCommand, args, prefixHandler) {
@@ -157,6 +161,20 @@ module.exports = {
         break;
       }
 
+      case "purge": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`Mention a user to purge. e.g. \`${prefix}purge @user 20\``);
+        const amount = parseInt(args[1]) || 10;
+        if (amount < 1 || amount > 100) return msg.reply("Provide a number between 1 and 100.");
+        const messages = await msg.channel.messages.fetch({ limit: 100 });
+        const toDelete = messages.filter(m => m.author.id === target.id).first(amount);
+        const deleted = await msg.channel.bulkDelete(toDelete, true).catch(() => null);
+        const count = deleted?.size ?? 0;
+        const notice = await msg.channel.send(`🧹 Deleted **${count}** message(s) from **${target.displayName}**.`);
+        setTimeout(() => notice.delete().catch(() => {}), 4000);
+        break;
+      }
+
       case "slowmode": {
         const seconds = parseInt(args[0]);
         if (isNaN(seconds) || seconds < 0 || seconds > 21600) {
@@ -176,6 +194,62 @@ module.exports = {
       case "unlock": {
         await msg.channel.permissionOverwrites.edit(msg.guild.roles.everyone, { SendMessages: null });
         msg.channel.send("🔓 This channel has been **unlocked**.");
+        break;
+      }
+
+      case "lockall": {
+        const channels = msg.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+        let count = 0;
+        for (const ch of channels.values()) {
+          try {
+            await ch.permissionOverwrites.edit(msg.guild.roles.everyone, { SendMessages: false });
+            count++;
+          } catch {}
+        }
+        msg.reply(`🔒 Locked **${count}** text channel(s). Use \`${prefix}unlockall\` to restore.`);
+        break;
+      }
+
+      case "unlockall": {
+        const channels = msg.guild.channels.cache.filter(c => c.type === ChannelType.GuildText);
+        let count = 0;
+        for (const ch of channels.values()) {
+          try {
+            await ch.permissionOverwrites.edit(msg.guild.roles.everyone, { SendMessages: null });
+            count++;
+          } catch {}
+        }
+        msg.reply(`🔓 Unlocked **${count}** text channel(s).`);
+        break;
+      }
+
+      case "nuke": {
+        const confirmArgs = args[0]?.toLowerCase();
+        if (confirmArgs !== "confirm") {
+          return msg.reply(`⚠️ This will **DELETE and RECREATE** this channel, wiping all message history.\nType \`${prefix}nuke confirm\` to proceed. This cannot be undone.`);
+        }
+        const ch = msg.channel;
+        const position = ch.position;
+        const newChannel = await ch.clone({ reason: `Nuked by ${msg.author.tag}` });
+        await newChannel.setPosition(position);
+        await ch.delete();
+        await newChannel.send("💥 Channel has been nuked. History? Gone. Fresh start.");
+        break;
+      }
+
+      case "dehoist": {
+        const hoistRegex = /^[^a-zA-Z0-9]/;
+        const members = await msg.guild.members.fetch();
+        let count = 0;
+        for (const member of members.values()) {
+          if (hoistRegex.test(member.displayName) && member.manageable) {
+            try {
+              await member.setNickname(`z${member.displayName}`, "Dehoist");
+              count++;
+            } catch {}
+          }
+        }
+        msg.reply(`✅ Dehoisted **${count}** member(s) — added \`z\` prefix to remove them from the top of the member list.`);
         break;
       }
 

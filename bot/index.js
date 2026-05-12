@@ -3,10 +3,12 @@ require("dotenv").config();
 
 const fun = require("./commands/fun");
 const admin = require("./commands/admin");
+const owner = require("./commands/owner");
 const configure = require("./commands/configure");
 const automod = require("./handlers/automod");
 const ai = require("./handlers/ai");
 const config = require("./handlers/config");
+const events = require("./handlers/events");
 
 const client = new Client({
   intents: [
@@ -15,8 +17,9 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildPresences,
   ],
-  partials: [Partials.Message, Partials.Channel, Partials.Reaction],
+  partials: [Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember],
 });
 
 client.on("clientReady", async () => {
@@ -48,6 +51,11 @@ async function routeCommand(msg, commandText, guildPrefix) {
     return true;
   }
 
+  if (baseCommand === "owner") {
+    await owner.handle(msg, args);
+    return true;
+  }
+
   const handled = await fun.handle(msg, baseCommand, args, guildPrefix);
   if (handled) return true;
 
@@ -66,12 +74,11 @@ client.on("messageCreate", async (msg) => {
     const isMentioned = msg.mentions.has(client.user);
 
     if (isMentioned) {
-      // Strip only the bot's own mention(s), leave other @mentions intact
+      // Strip only the bot's own mention(s), keep other @mentions intact
       const botMentionRegex = new RegExp(`<@!?${client.user.id}>`, "g");
       const stripped = msg.content.replace(botMentionRegex, "").trim();
 
       if (stripped) {
-        // Accept both "@Bot kick @user" and "@Bot !kick @user"
         const commandText = stripped.startsWith(guildPrefix)
           ? stripped.slice(guildPrefix.length).trim()
           : stripped;
@@ -89,21 +96,46 @@ client.on("messageCreate", async (msg) => {
 
     // Normal prefix-based routing (no mention)
     const content = msg.content.trim();
-    if (!content.startsWith(guildPrefix)) return;
+    if (content.startsWith(guildPrefix)) {
+      const commandText = content.slice(guildPrefix.length).trim();
+      if (commandText) {
+        await routeCommand(msg, commandText, guildPrefix);
+        return;
+      }
+    }
 
-    const commandText = content.slice(guildPrefix.length).trim();
-    if (!commandText) return;
+    // Trivia answer check (passive, no prefix needed)
+    fun.checkTrivia(msg);
 
-    await routeCommand(msg, commandText, guildPrefix);
+    // Passive event reactions / keyword replies
+    await events.onMessage(msg);
   } catch (err) {
     console.error("messageCreate error:", err?.message);
   }
 });
 
-client.on("guildMemberAdd", (member) => {
+client.on("guildMemberAdd", async (member) => {
   const channel = member.guild.systemChannel;
-  if (channel) {
-    channel.send(`👀 **${member.displayName}** just joined. welcome I guess. don't make it weird.`);
+  if (!channel) return;
+  const greets = [
+    `👀 **${member.displayName}** just joined. welcome I guess. don't make it weird.`,
+    `🚪 **${member.displayName}** has arrived. the vibe has officially changed.`,
+    `👋 oh hey **${member.displayName}**. we were just talking about you. (we weren't)`,
+    `📬 **${member.displayName}** joined the server. say hi or don't. whatever.`,
+  ];
+  channel.send(greets[Math.floor(Math.random() * greets.length)]);
+});
+
+client.on("guildMemberRemove", async (member) => {
+  await events.onMemberLeave(member);
+});
+
+client.on("guildMemberUpdate", async (oldMember, newMember) => {
+  // Detect server boost
+  const wasBooster = oldMember.premiumSince;
+  const isBooster = newMember.premiumSince;
+  if (!wasBooster && isBooster) {
+    await events.onMemberBoost(newMember);
   }
 });
 

@@ -1,5 +1,6 @@
 const { EmbedBuilder } = require("discord.js");
 const poll = require("./poll");
+const config = require("../handlers/config");
 
 const eightBallReplies = [
   "It is certain.", "It is decidedly so.", "Without a doubt.",
@@ -22,6 +23,10 @@ const jokes = [
   "What do you call a fake noodle? An impasta. I've been holding that in for years.",
   "I used to hate facial hair but then it grew on me. That's the whole joke.",
   "My doctor told me I was going deaf. That was unexpected news.",
+  "A skeleton walks into a bar and orders a beer and a mop.",
+  "I told my wife she was drawing her eyebrows too high. She looked surprised.",
+  "I'm on a seafood diet. I see food and I eat it. Classic.",
+  "Why do cows wear bells? Their horns don't work. I don't make the rules.",
 ];
 
 const roasts = [
@@ -35,6 +40,9 @@ const roasts = [
   "You're proof that evolution can go in reverse. Congrats on the milestone.",
   "I'm not saying you're dumb but you'd need a map to find your way out of a good idea.",
   "You have the energy of a wet napkin at a very important meeting.",
+  "You're not the dumbest person I've ever met but you better hope they don't die.",
+  "Your secrets are safe with me. I stopped listening immediately.",
+  "You have your entire life to be an idiot. Why not take today off.",
 ];
 
 const compliments = [
@@ -46,6 +54,7 @@ const compliments = [
   "Your vibe is unmatched and I'm saying that as someone who doesn't give compliments.",
   "You're the human equivalent of finding $20 in a jacket you forgot about.",
   "People probably don't tell you enough how genuinely solid you are. I'm fixing that now.",
+  "You're doing better than you think. That's not a guess, that's a fact.",
 ];
 
 const weirdguyReplies = [
@@ -64,6 +73,21 @@ const weirdguyReplies = [
 const rpsChoices = ["rock", "paper", "scissors"];
 const rpsWins = { rock: "scissors", paper: "rock", scissors: "paper" };
 
+const triviaQuestions = [
+  { q: "What is the capital of France?", a: "paris", hint: "City of Lights" },
+  { q: "How many sides does a hexagon have?", a: "6", hint: "It's in the name" },
+  { q: "What planet is closest to the Sun?", a: "mercury", hint: "Starts with M" },
+  { q: "What is the largest ocean on Earth?", a: "pacific", hint: "It's truly massive" },
+  { q: "How many colors are in a rainbow?", a: "7", hint: "Roy G Biv" },
+  { q: "What gas do plants absorb from the atmosphere?", a: "carbon dioxide", hint: "You breathe it out" },
+  { q: "Who painted the Mona Lisa?", a: "leonardo da vinci", hint: "Also designed flying machines" },
+  { q: "What is the smallest planet in our solar system?", a: "mercury", hint: "Also closest to the Sun" },
+  { q: "In what year did the Titanic sink?", a: "1912", hint: "Early 20th century" },
+  { q: "What is the chemical symbol for gold?", a: "au", hint: "Latin: Aurum" },
+];
+
+const activeTrivia = new Map(); // channelId -> { question, answer, timeout }
+
 function timeAgo(date) {
   const ms = Date.now() - date.getTime();
   const days = Math.floor(ms / 86400000);
@@ -77,12 +101,46 @@ function timeAgo(date) {
 }
 
 function formatDate(date) {
-  return date.toLocaleDateString("en-US", {
-    year: "numeric", month: "long", day: "numeric",
-  });
+  return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+}
+
+function mockText(text) {
+  return text.split("").map((c, i) => i % 2 === 0 ? c.toLowerCase() : c.toUpperCase()).join("");
+}
+
+function ppSize(userId) {
+  // Deterministic based on userId so it's consistent per user
+  let hash = 0;
+  for (const ch of userId) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
+  return Math.abs(hash) % 13; // 0-12 inches
+}
+
+function shipScore(id1, id2) {
+  const combined = [id1, id2].sort().join("");
+  let hash = 0;
+  for (const ch of combined) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
+  return Math.abs(hash) % 101; // 0-100
+}
+
+function shipBar(score) {
+  const filled = Math.round(score / 10);
+  return "❤️".repeat(filled) + "🖤".repeat(10 - filled);
 }
 
 module.exports = {
+  // Expose for trivia answer checking
+  checkTrivia(msg) {
+    const active = activeTrivia.get(msg.channel.id);
+    if (!active) return false;
+    if (msg.content.trim().toLowerCase() === active.answer) {
+      clearTimeout(active.timeout);
+      activeTrivia.delete(msg.channel.id);
+      msg.reply(`✅ **Correct!** Nice one, **${msg.member.displayName}**! The answer was \`${active.answer}\`.`).catch(() => {});
+      return true;
+    }
+    return false;
+  },
+
   async handle(msg, baseCommand, args, p = "!") {
     switch (baseCommand) {
       case "weirdguy": {
@@ -103,14 +161,13 @@ module.exports = {
           Heads: ["heads. don't read into it.", "heads. nice.", "heads. you're welcome I guess."],
           Tails: ["tails. sorry about that.", "tails. it is what it is.", "tails. the coin has spoken."],
         };
-        const comment = comments[result][Math.floor(Math.random() * 3)];
-        msg.reply(`🪙 **${result}!** ${comment}`);
+        msg.reply(`🪙 **${result}!** ${comments[result][Math.floor(Math.random() * 3)]}`);
         break;
       }
 
       case "roll": {
         const sides = parseInt(args[0]) || 6;
-        if (sides < 2 || sides > 1000) return msg.reply("pick a number of sides between 2 and 1000. I don't make the rules. actually I do. 2 to 1000.");
+        if (sides < 2 || sides > 1000) return msg.reply("pick a number of sides between 2 and 1000.");
         const result = Math.floor(Math.random() * sides) + 1;
         const comments = ["there you go.", "the dice have spoken.", "fate has decided.", "don't blame me."];
         msg.reply(`🎲 rolled a **${result}** (d${sides}) — ${comments[Math.floor(Math.random() * comments.length)]}`);
@@ -125,8 +182,7 @@ module.exports = {
       case "roast": {
         const target = msg.mentions.members?.first();
         const name = target ? target.displayName : "yourself";
-        const roast = roasts[Math.floor(Math.random() * roasts.length)];
-        msg.reply(`🔥 ${name}: ${roast}`);
+        msg.reply(`🔥 ${name}: ${roasts[Math.floor(Math.random() * roasts.length)]}`);
         break;
       }
 
@@ -156,6 +212,123 @@ module.exports = {
         break;
       }
 
+      case "choose": {
+        if (args.length < 2) return msg.reply(`give me at least 2 options. e.g. \`${p}choose pizza tacos sushi\``);
+        const chosen = args[Math.floor(Math.random() * args.length)];
+        const comments = ["obviously.", "no contest.", "and honestly? correct.", "I would have picked the same.", "the data supports this choice."];
+        msg.reply(`🎯 **${chosen}** — ${comments[Math.floor(Math.random() * comments.length)]}`);
+        break;
+      }
+
+      case "ship": {
+        const members = msg.mentions.members;
+        if (!members || members.size < 2) return msg.reply(`mention 2 people to ship. e.g. \`${p}ship @user1 @user2\``);
+        const [m1, m2] = [...members.values()];
+        const score = shipScore(m1.id, m2.id);
+        const bar = shipBar(score);
+        const comments = score >= 90 ? "soulmates honestly 💘" : score >= 70 ? "pretty solid tbh 💕" : score >= 50 ? "could work with effort 💛" : score >= 30 ? "it's complicated 🤔" : "I'm not gonna lie to you 💀";
+        msg.reply(`💘 **${m1.displayName}** + **${m2.displayName}**\n${bar}\n**${score}%** compatibility — ${comments}`);
+        break;
+      }
+
+      case "rate": {
+        if (!args.length) return msg.reply(`give me something to rate. e.g. \`${p}rate pizza\``);
+        const thing = args.join(" ");
+        const score = Math.floor(Math.random() * 11);
+        const reactions = {
+          0: "absolute zero. historically bad.",
+          1: "I've seen better. I've seen worse. actually no I haven't.",
+          2: "rough.",
+          3: "not great, not terrible. actually terrible.",
+          4: "below average and aware of it.",
+          5: "exactly in the middle. safe. boring. fine.",
+          6: "okay. passable. it exists.",
+          7: "genuinely decent. I'm surprised.",
+          8: "solid. I have respect for this.",
+          9: "excellent. I don't give this easily.",
+          10: "perfect. I've achieved something by rating this.",
+        };
+        msg.reply(`📊 **${thing}**: **${score}/10** — ${reactions[score]}`);
+        break;
+      }
+
+      case "mock": {
+        if (!args.length) return msg.reply(`give me something to mock. e.g. \`${p}mock hello there\``);
+        msg.reply(mockText(args.join(" ")));
+        break;
+      }
+
+      case "reverse": {
+        if (!args.length) return msg.reply(`give me text to reverse. e.g. \`${p}reverse hello\``);
+        msg.reply(args.join(" ").split("").reverse().join(""));
+        break;
+      }
+
+      case "pp": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const size = ppSize(target.id);
+        const bar = "8" + "=".repeat(size) + "D";
+        msg.reply(`📏 **${target.displayName}'s pp:**\n\`${bar}\` (${size} inches)\n${size >= 10 ? "…ok then." : size >= 7 ? "respectable." : size >= 4 ? "average, apparently." : size >= 2 ? "it's fine." : "…I won't say anything."}`);
+        break;
+      }
+
+      case "avatar": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const url = target.user.displayAvatarURL({ dynamic: true, size: 1024 });
+        const embed = new EmbedBuilder()
+          .setColor(target.displayHexColor === "#000000" ? "#5865f2" : target.displayHexColor)
+          .setAuthor({ name: `${target.user.tag}'s avatar`, iconURL: url })
+          .setImage(url)
+          .setFooter({ text: `Requested by ${msg.author.tag}` })
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
+      case "trivia": {
+        if (activeTrivia.has(msg.channel.id)) {
+          const active = activeTrivia.get(msg.channel.id);
+          return msg.reply(`⏳ A trivia question is already active! **${active.question}** — hint: ${active.hint}`);
+        }
+        const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
+        const timeout = setTimeout(() => {
+          activeTrivia.delete(msg.channel.id);
+          msg.channel.send(`⏰ Time's up! The answer was **${q.a}**. nobody got it. embarrassing.`).catch(() => {});
+        }, 30_000);
+        activeTrivia.set(msg.channel.id, { question: q.q, answer: q.a, hint: q.hint, timeout });
+        msg.reply(`🧠 **Trivia Time!**\n${q.q}\n*Hint: ${q.hint}* — you have 30 seconds.`);
+        break;
+      }
+
+      case "aimode": {
+        if (!msg.member.permissions.has("Administrator") && !require("../handlers/config").isOwner(msg.author.id)) {
+          return msg.reply("🚫 Only Administrators can change the AI mode.");
+        }
+        const mode = args[0]?.toLowerCase();
+        const validModes = config.VALID_MODES;
+        if (!mode) {
+          const current = config.get(msg.guild.id).aiMode;
+          return msg.reply(`**Current AI mode:** \`${current}\`\nAvailable: ${validModes.map(m => `\`${m}\``).join(", ")}\nUsage: \`${p}aimode [mode]\``);
+        }
+        const ok = config.setAiMode(msg.guild.id, mode);
+        if (!ok) return msg.reply(`❌ Unknown mode. Choose from: ${validModes.map(m => `\`${m}\``).join(", ")}`);
+        const modeEmojis = { intellectual: "🎓", normal: "😎", crazy: "🤪", relaxed: "😌", depressed: "😔", flow: "🔥" };
+        msg.reply(`${modeEmojis[mode] || "🤖"} AI mode set to **${mode}**. I'll adapt immediately.`);
+        break;
+      }
+
+      case "invite": {
+        const clientId = msg.client.application?.id || msg.client.user.id;
+        const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot`;
+        const embed = new EmbedBuilder()
+          .setColor("#5865f2")
+          .setTitle("🔗 Invite Weird Guy")
+          .setDescription(`[Click here to add me to your server](${url})\n\nRequests **Administrator** — needed for full mod features. You can reduce permissions in the invite flow.`)
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
       case "userinfo": {
         const target = msg.mentions.members?.first() || msg.member;
         const user = target.user;
@@ -181,7 +354,6 @@ module.exports = {
           )
           .setFooter({ text: `Requested by ${msg.author.tag}` })
           .setTimestamp();
-
         await msg.reply({ embeds: [embed] });
         break;
       }
@@ -189,7 +361,6 @@ module.exports = {
       case "serverinfo": {
         const guild = msg.guild;
         await guild.fetch();
-
         const owner = await guild.fetchOwner().catch(() => null);
         const channels = guild.channels.cache;
         const textChannels = channels.filter(c => c.type === 0).size;
@@ -197,9 +368,7 @@ module.exports = {
         const categoryChannels = channels.filter(c => c.type === 4).size;
         const roles = guild.roles.cache.size - 1;
         const boostTier = ["None", "Level 1", "Level 2", "Level 3"][guild.premiumTier] || "None";
-
         const verificationLevels = ["None", "Low", "Medium", "High", "Very High"];
-        const verification = verificationLevels[guild.verificationLevel] || "Unknown";
 
         const embed = new EmbedBuilder()
           .setColor("#5865f2")
@@ -212,18 +381,12 @@ module.exports = {
             { name: "Members", value: `👥 ${guild.memberCount.toLocaleString()}`, inline: true },
             { name: "Roles", value: `🏷️ ${roles}`, inline: true },
             { name: "Boost Status", value: `✨ ${boostTier} (${guild.premiumSubscriptionCount ?? 0} boosts)`, inline: true },
-            {
-              name: "Channels",
-              value: `💬 ${textChannels} text  🔊 ${voiceChannels} voice  📁 ${categoryChannels} categories`,
-              inline: false,
-            },
-            { name: "Verification Level", value: verification, inline: true },
+            { name: "Channels", value: `💬 ${textChannels} text  🔊 ${voiceChannels} voice  📁 ${categoryChannels} categories`, inline: false },
+            { name: "Verification Level", value: verificationLevels[guild.verificationLevel] || "Unknown", inline: true },
           )
           .setFooter({ text: `Requested by ${msg.author.tag}` })
           .setTimestamp();
-
         if (guild.bannerURL()) embed.setImage(guild.bannerURL({ size: 1024 }));
-
         await msg.reply({ embeds: [embed] });
         break;
       }
@@ -232,28 +395,41 @@ module.exports = {
         msg.reply([
           "**🎮 Fun Commands**",
           `\`${p}weirdguy\` — wake me up (why would you do this)`,
-          `\`${p}8ball [question]\` — consult the magic 8 ball`,
+          `\`${p}8ball [question]\` — ask the magic 8 ball`,
           `\`${p}coinflip\` — heads or tails`,
           `\`${p}roll [sides]\` — roll a dice (default d6)`,
           `\`${p}joke\` — hear a joke`,
           `\`${p}roast [@user]\` — get cooked`,
           `\`${p}compliment [@user]\` — feel good for once`,
-          `\`${p}rps [rock/paper/scissors]\` — play me (I always win mentally)`,
+          `\`${p}rps [rock/paper/scissors]\` — play me`,
           `\`${p}poll "Question" [opt1 opt2 ...]\` — reaction poll`,
-          `\`${p}userinfo [@user]\` — look up a member's info`,
-          `\`${p}serverinfo\` — look up server stats`,
+          `\`${p}choose [opt1] [opt2] ...\` — let me decide`,
+          `\`${p}ship @user1 @user2\` — compatibility rating`,
+          `\`${p}rate [thing]\` — I rate it out of 10`,
+          `\`${p}mock [text]\` — SpOnGeBob style`,
+          `\`${p}reverse [text]\` — reverse text`,
+          `\`${p}pp [@user]\` — you know what this is`,
+          `\`${p}avatar [@user]\` — full size avatar`,
+          `\`${p}trivia\` — 30-second trivia question`,
+          `\`${p}userinfo [@user]\` — member info`,
+          `\`${p}serverinfo\` — server stats`,
+          `\`${p}invite\` — get the bot invite link`,
           "",
           "**🤖 AI Chat**",
-          "Mention @Weird Guy and I'll respond — I remember your last 8 messages. Don't abuse it.",
+          `Mention @Weird Guy to chat. Use \`${p}aimode [mode]\` to change personality.`,
+          `Modes: \`intellectual\` \`normal\` \`crazy\` \`relaxed\` \`depressed\` \`flow\``,
           "",
-          "**🛡️ Admin Commands** *(Administrator or bot owner only)*",
-          `\`${p}setprefix <char>\` — change command prefix`,
+          "**🛡️ Admin Commands** *(Administrator or bot owner)*",
           `\`${p}kick / ban / mute / unmute @user\``,
           `\`${p}warn @user [reason]\` — warn + auto-actions at thresholds`,
           `\`${p}warnings / clearwarns @user\``,
           `\`${p}clear [1-100]\` — bulk delete messages`,
+          `\`${p}purge @user [1-100]\` — delete a user's recent messages`,
           `\`${p}slowmode [seconds]\``,
           `\`${p}lock / unlock\` — lock a channel`,
+          `\`${p}lockall / unlockall\` — lock or unlock ALL channels`,
+          `\`${p}nuke\` — delete and recreate channel (wipes history)`,
+          `\`${p}dehoist\` — rename hoisted members`,
           `\`${p}aiclear [@user]\` — reset AI conversation history`,
           `\`${p}config\` — view/change all bot settings`,
           "",
