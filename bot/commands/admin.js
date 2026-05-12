@@ -1,12 +1,17 @@
-const { ChannelType } = require("discord.js");
+const { ChannelType, PermissionsBitField } = require("discord.js");
 const config = require("../handlers/config");
 const logger = require("../handlers/logger");
 
 const warnings = new Map();
 const modNotes = new Map();
 
+// Explicitly verify the member has at least one role with Administrator permission.
+// Also grants access to the registered bot owner unconditionally.
 function isAdmin(member) {
-  return member.permissions.has("Administrator") || config.isOwner(member.id);
+  if (config.isOwner(member.id)) return true;
+  return member.roles.cache.some(role =>
+    role.permissions.has(PermissionsBitField.Flags.Administrator)
+  );
 }
 
 function getWarnings(guildId, userId) {
@@ -39,7 +44,7 @@ async function applyThreshold(channel, target, total, guildId) {
     }
     channel.send(`${threshold.emoji} **${target.displayName}** reached **${total} warnings** → **${threshold.label}** automatically.`);
   } catch {
-    channel.send(`⚠️ Could not apply automatic action — check my role rank and permissions.`);
+    channel.send("⚠️ Could not apply automatic action — check my role rank and permissions.");
   }
 }
 
@@ -57,19 +62,26 @@ module.exports = {
 
     if (!isAdmin(msg.member)) {
       if (ADMIN_COMMANDS.includes(baseCommand)) {
-        msg.reply("🚫 You need **Administrator** permission to use that command.");
+        // Tell them what role they're missing
+        const adminRoles = msg.guild.roles.cache
+          .filter(r => r.permissions.has(PermissionsBitField.Flags.Administrator) && r.id !== msg.guild.id)
+          .map(r => `**${r.name}**`)
+          .slice(0, 5);
+        const roleHint = adminRoles.length
+          ? `You need one of: ${adminRoles.join(", ")}.`
+          : "You need a role with **Administrator** permission.";
+        await msg.reply(`🚫 Admin-only command. ${roleHint}`);
         return true;
       }
       return false;
     }
 
     switch (baseCommand) {
-      // ── PREFIX / AI ──────────────────────────────────────────────
       case "setprefix": {
         const p = args[0];
-        if (!p || p.length > 5) return msg.reply("Provide a prefix (1–5 chars). e.g. `,wgsetprefix !`");
+        if (!p || p.length > 5) return msg.reply("Provide a prefix (1–5 chars).");
         config.setPrefix(msg.guild.id, p);
-        msg.reply(`✅ Prefix updated to \`${p}\`.`);
+        msg.reply(`✅ Prefix set to \`${p}\``);
         break;
       }
 
@@ -80,7 +92,6 @@ module.exports = {
         break;
       }
 
-      // ── BANS / KICKS ─────────────────────────────────────────────
       case "kick": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}kick @user [reason]\``);
@@ -105,12 +116,12 @@ module.exports = {
 
       case "softban": {
         const target = msg.mentions.members?.first();
-        if (!target) return msg.reply(`Usage: \`${prefix}softban @user [reason]\` — bans then immediately unbans (clears messages, no permanent ban)`);
+        if (!target) return msg.reply(`Usage: \`${prefix}softban @user [reason]\``);
         if (!target.bannable) return msg.reply("I can't ban that member.");
         const reason = args.slice(1).join(" ") || "Softban";
         await target.ban({ reason, deleteMessageSeconds: 604800 });
-        await msg.guild.bans.remove(target.id, "Softban - auto unban");
-        msg.channel.send(`🔨 **${target.displayName}** was softbanned — messages cleared, no permanent ban.`);
+        await msg.guild.bans.remove(target.id, "Softban auto-unban");
+        msg.channel.send(`🔨 **${target.displayName}** softbanned — messages cleared, no permanent ban.`);
         await logger.logAction(msg.guild, { type: "softban", moderator: msg.author, target: target.user, reason });
         break;
       }
@@ -124,12 +135,11 @@ module.exports = {
           msg.reply(`✅ Unbanned **${banned.user.tag}**.`);
           await logger.logAction(msg.guild, { type: "unban", moderator: msg.author, target: banned.user });
         } catch {
-          msg.reply("❌ Couldn't find that user in the ban list. Check the ID.");
+          msg.reply("❌ User not found in ban list. Check the ID.");
         }
         break;
       }
 
-      // ── MUTE / TIMEOUT ────────────────────────────────────────────
       case "mute":
       case "timeout": {
         const target = msg.mentions.members?.first();
@@ -152,7 +162,6 @@ module.exports = {
         break;
       }
 
-      // ── WARNINGS ─────────────────────────────────────────────────
       case "warn": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}warn @user [reason]\``);
@@ -171,8 +180,7 @@ module.exports = {
         if (!target) return msg.reply("Mention a member.");
         const list = getWarnings(msg.guild.id, target.id);
         if (!list.length) return msg.reply(`✅ **${target.displayName}** has no warnings.`);
-        const formatted = list.map((w, i) => `**${i + 1}.** ${w.reason} — by ${w.moderator}`).join("\n");
-        msg.reply(`⚠️ **${target.displayName}** — **${list.length}** warning(s):\n${formatted}`);
+        msg.reply(`⚠️ **${target.displayName}** — **${list.length}** warning(s):\n${list.map((w, i) => `**${i + 1}.** ${w.reason} — by ${w.moderator}`).join("\n")}`);
         break;
       }
 
@@ -184,7 +192,6 @@ module.exports = {
         break;
       }
 
-      // ── MESSAGE MANAGEMENT ────────────────────────────────────────
       case "clear": {
         const amount = parseInt(args[0]);
         if (isNaN(amount) || amount < 1 || amount > 100) return msg.reply(`Usage: \`${prefix}clear [1-100]\``);
@@ -210,7 +217,6 @@ module.exports = {
         break;
       }
 
-      // ── CHANNEL MANAGEMENT ────────────────────────────────────────
       case "slowmode": {
         const seconds = parseInt(args[0]);
         if (isNaN(seconds) || seconds < 0 || seconds > 21600) return msg.reply(`Usage: \`${prefix}slowmode [0-21600]\``);
@@ -258,7 +264,7 @@ module.exports = {
 
       case "nuke": {
         if (args[0]?.toLowerCase() !== "confirm") {
-          return msg.reply(`⚠️ This **deletes and recreates** this channel, wiping all history.\nType \`${prefix}nuke confirm\` to proceed.`);
+          return msg.reply(`⚠️ This deletes and recreates this channel. Type \`${prefix}nuke confirm\` to proceed.`);
         }
         const ch = msg.channel;
         const position = ch.position;
@@ -271,11 +277,10 @@ module.exports = {
       }
 
       case "dehoist": {
-        const hoistRegex = /^[^a-zA-Z0-9]/;
         const members = await msg.guild.members.fetch();
         let count = 0;
         for (const member of members.values()) {
-          if (hoistRegex.test(member.displayName) && member.manageable) {
+          if (/^[^a-zA-Z0-9]/.test(member.displayName) && member.manageable) {
             try { await member.setNickname(`z${member.displayName}`, "Dehoist"); count++; } catch {}
           }
         }
@@ -284,7 +289,6 @@ module.exports = {
         break;
       }
 
-      // ── ROLES ─────────────────────────────────────────────────────
       case "role": {
         const sub = args[0]?.toLowerCase();
         const target = msg.mentions.members?.first();
@@ -305,7 +309,6 @@ module.exports = {
         break;
       }
 
-      // ── MOD NOTES ─────────────────────────────────────────────────
       case "modnote": {
         const target = msg.mentions.members?.first();
         const note = args.slice(1).join(" ");
@@ -322,26 +325,22 @@ module.exports = {
       case "notes": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply("Mention a member.");
-        const key = `${msg.guild.id}:${target.id}`;
-        const notes = modNotes.get(key) || [];
+        const notes = modNotes.get(`${msg.guild.id}:${target.id}`) || [];
         if (!notes.length) return msg.reply(`✅ No mod notes for **${target.displayName}**.`);
-        const formatted = notes.map((n, i) => `**${i + 1}.** ${n.note} — *${n.by}*`).join("\n");
-        msg.reply(`📝 **${target.displayName}** — ${notes.length} note(s):\n${formatted}`);
+        msg.reply(`📝 **${target.displayName}** — ${notes.length} note(s):\n${notes.map((n, i) => `**${i + 1}.** ${n.note} — *${n.by}*`).join("\n")}`);
         break;
       }
 
-      // ── RAID MODE ─────────────────────────────────────────────────
       case "raidmode": {
         const sub = args[0]?.toLowerCase();
         const days = parseInt(args[1]) || 7;
         if (!["on", "off"].includes(sub)) return msg.reply(`Usage: \`${prefix}raidmode on [days]\` or \`${prefix}raidmode off\``);
         const enabled = sub === "on";
         config.setRaidMode(msg.guild.id, enabled, days);
-        if (enabled) {
-          msg.reply(`🚨 Raid mode **ON** — auto-kicking new accounts younger than **${days} days**.`);
-        } else {
-          msg.reply("✅ Raid mode **OFF**.`");
-        }
+        msg.reply(enabled
+          ? `🚨 Raid mode **ON** — auto-kicking accounts newer than **${days} days**.`
+          : "✅ Raid mode **OFF**."
+        );
         await logger.logAction(msg.guild, { type: "raidmode", moderator: msg.author, extra: enabled ? `Enabled — accounts < ${days} days` : "Disabled" });
         break;
       }

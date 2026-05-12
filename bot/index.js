@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials } = require("discord.js");
+const { Client, GatewayIntentBits, Partials, ActivityType } = require("discord.js");
 require("dotenv").config();
 
 const fun = require("./commands/fun");
@@ -11,8 +11,40 @@ const config = require("./handlers/config");
 const events = require("./handlers/events");
 const keepalive = require("./handlers/keepalive");
 
-// Start keep-alive HTTP server (for UptimeRobot pinging)
+// Start keep-alive HTTP server (ping /ping with UptimeRobot)
 keepalive.start();
+
+const ACTIVITIES = [
+  { name: "the server 👀",              type: ActivityType.Watching },
+  { name: "everyone's messages 📖",      type: ActivityType.Watching },
+  { name: "your business 🤫",            type: ActivityType.Watching },
+  { name: "with your feelings 🎮",       type: ActivityType.Playing },
+  { name: "chess with myself ♟️",        type: ActivityType.Playing },
+  { name: "absolutely nothing 😴",       type: ActivityType.Playing },
+  { name: "judge judy 📺",               type: ActivityType.Watching },
+  { name: "the economy crash 📈",        type: ActivityType.Watching },
+  { name: "your secrets 🤐",             type: ActivityType.Watching },
+  { name: "minecraft alone 🎮",          type: ActivityType.Playing },
+  { name: "lo-fi beats 🎵",              type: ActivityType.Listening },
+  { name: ",wghelp for commands",        type: ActivityType.Listening },
+  { name: "drama unfold 🍿",             type: ActivityType.Watching },
+  { name: "the vibes shift ✨",           type: ActivityType.Watching },
+  { name: "being weird competitively",   type: ActivityType.Competing },
+  { name: "nothing. I'm just vibing",    type: ActivityType.Playing },
+  { name: "the void stare back 🌑",      type: ActivityType.Watching },
+  { name: "your typing indicator 👀",    type: ActivityType.Watching },
+  { name: "the simulation 💻",           type: ActivityType.Playing },
+  { name: "the group chat judgment",     type: ActivityType.Competing },
+];
+
+let activityIndex = Math.floor(Math.random() * ACTIVITIES.length);
+
+function rotateActivity(client) {
+  if (!client.user) return;
+  const activity = ACTIVITIES[activityIndex % ACTIVITIES.length];
+  client.user.setActivity(activity.name, { type: activity.type });
+  activityIndex++;
+}
 
 const client = new Client({
   intents: [
@@ -28,7 +60,9 @@ const client = new Client({
 
 client.on("clientReady", async () => {
   console.log(`Logged in as ${client.user.tag}`);
-  client.user.setActivity("the server 👀", { type: 3 });
+  rotateActivity(client);
+  // Rotate status every 3 minutes
+  setInterval(() => rotateActivity(client), 3 * 60 * 1000);
 
   try {
     await client.application.fetch();
@@ -44,7 +78,6 @@ client.on("clientReady", async () => {
 });
 
 // Route a parsed command string through all handlers.
-// Returns true if a handler claimed it, false otherwise.
 async function routeCommand(msg, commandText, guildPrefix) {
   const parts = commandText.split(/\s+/);
   const baseCommand = parts[0].toLowerCase();
@@ -92,12 +125,10 @@ client.on("messageCreate", async (msg) => {
         }
       }
 
-      // No command matched — AI chat
       await ai.reply(msg);
       return;
     }
 
-    // Normal prefix routing
     const content = msg.content.trim();
     if (content.startsWith(guildPrefix)) {
       const commandText = content.slice(guildPrefix.length).trim();
@@ -107,10 +138,7 @@ client.on("messageCreate", async (msg) => {
       }
     }
 
-    // Passive: trivia answer check (no prefix needed)
     if (fun.checkTrivia(msg)) return;
-
-    // Passive: keyword reactions and random replies
     await events.onMessage(msg);
   } catch (err) {
     console.error("messageCreate error:", err?.message);
@@ -118,19 +146,17 @@ client.on("messageCreate", async (msg) => {
 });
 
 client.on("guildMemberAdd", async (member) => {
-  // Raid mode check
   const cfg = config.get(member.guild.id);
   if (cfg.raidMode) {
-    const accountAgeDays = (Date.now() - member.user.createdTimestamp) / 86400000;
-    if (accountAgeDays < cfg.raidAccountAgeDays) {
-      await member.kick(`Raid mode: account too new (${Math.floor(accountAgeDays)} days)`).catch(() => {});
+    const ageDays = (Date.now() - member.user.createdTimestamp) / 86400000;
+    if (ageDays < cfg.raidAccountAgeDays) {
+      await member.kick(`Raid mode: account ${Math.floor(ageDays)} day(s) old`).catch(() => {});
       const ch = member.guild.systemChannel;
-      if (ch) ch.send(`🚨 Raid mode: kicked **${member.user.tag}** — account only ${Math.floor(accountAgeDays)} day(s) old.`).catch(() => {});
+      if (ch) ch.send(`🚨 Raid mode: kicked **${member.user.tag}** — account only ${Math.floor(ageDays)} day(s) old.`).catch(() => {});
       return;
     }
   }
 
-  // Welcome message
   const channel = member.guild.systemChannel;
   if (!channel) return;
   const greets = [
@@ -139,6 +165,7 @@ client.on("guildMemberAdd", async (member) => {
     `👋 oh hey **${member.displayName}**. we were just talking about you. (we weren't)`,
     `📬 **${member.displayName}** joined. say hi or don't. whatever.`,
     `✨ **${member.displayName}** pulled up. let's see what they're about.`,
+    `🎉 **${member.displayName}** is here. finally. we've been waiting. (we haven't)`,
   ];
   channel.send(greets[Math.floor(Math.random() * greets.length)]).catch(() => {});
 });
