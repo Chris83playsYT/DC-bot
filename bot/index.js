@@ -9,6 +9,10 @@ const automod = require("./handlers/automod");
 const ai = require("./handlers/ai");
 const config = require("./handlers/config");
 const events = require("./handlers/events");
+const keepalive = require("./handlers/keepalive");
+
+// Start keep-alive HTTP server (for UptimeRobot pinging)
+keepalive.start();
 
 const client = new Client({
   intents: [
@@ -28,8 +32,8 @@ client.on("clientReady", async () => {
 
   try {
     await client.application.fetch();
-    const owner = client.application.owner;
-    const ownerId = owner?.id ?? owner?.ownerId;
+    const ownerObj = client.application.owner;
+    const ownerId = ownerObj?.id ?? ownerObj?.ownerId;
     if (ownerId) {
       config.setOwner(ownerId);
       console.log(`Bot owner set: ${ownerId}`);
@@ -39,7 +43,7 @@ client.on("clientReady", async () => {
   }
 });
 
-// Route a parsed command string through all command handlers.
+// Route a parsed command string through all handlers.
 // Returns true if a handler claimed it, false otherwise.
 async function routeCommand(msg, commandText, guildPrefix) {
   const parts = commandText.split(/\s+/);
@@ -74,7 +78,6 @@ client.on("messageCreate", async (msg) => {
     const isMentioned = msg.mentions.has(client.user);
 
     if (isMentioned) {
-      // Strip only the bot's own mention(s), keep other @mentions intact
       const botMentionRegex = new RegExp(`<@!?${client.user.id}>`, "g");
       const stripped = msg.content.replace(botMentionRegex, "").trim();
 
@@ -89,12 +92,12 @@ client.on("messageCreate", async (msg) => {
         }
       }
 
-      // No command matched — fall through to AI chat
+      // No command matched — AI chat
       await ai.reply(msg);
       return;
     }
 
-    // Normal prefix-based routing (no mention)
+    // Normal prefix routing
     const content = msg.content.trim();
     if (content.startsWith(guildPrefix)) {
       const commandText = content.slice(guildPrefix.length).trim();
@@ -104,10 +107,10 @@ client.on("messageCreate", async (msg) => {
       }
     }
 
-    // Trivia answer check (passive, no prefix needed)
-    fun.checkTrivia(msg);
+    // Passive: trivia answer check (no prefix needed)
+    if (fun.checkTrivia(msg)) return;
 
-    // Passive event reactions / keyword replies
+    // Passive: keyword reactions and random replies
     await events.onMessage(msg);
   } catch (err) {
     console.error("messageCreate error:", err?.message);
@@ -115,15 +118,29 @@ client.on("messageCreate", async (msg) => {
 });
 
 client.on("guildMemberAdd", async (member) => {
+  // Raid mode check
+  const cfg = config.get(member.guild.id);
+  if (cfg.raidMode) {
+    const accountAgeDays = (Date.now() - member.user.createdTimestamp) / 86400000;
+    if (accountAgeDays < cfg.raidAccountAgeDays) {
+      await member.kick(`Raid mode: account too new (${Math.floor(accountAgeDays)} days)`).catch(() => {});
+      const ch = member.guild.systemChannel;
+      if (ch) ch.send(`🚨 Raid mode: kicked **${member.user.tag}** — account only ${Math.floor(accountAgeDays)} day(s) old.`).catch(() => {});
+      return;
+    }
+  }
+
+  // Welcome message
   const channel = member.guild.systemChannel;
   if (!channel) return;
   const greets = [
     `👀 **${member.displayName}** just joined. welcome I guess. don't make it weird.`,
     `🚪 **${member.displayName}** has arrived. the vibe has officially changed.`,
     `👋 oh hey **${member.displayName}**. we were just talking about you. (we weren't)`,
-    `📬 **${member.displayName}** joined the server. say hi or don't. whatever.`,
+    `📬 **${member.displayName}** joined. say hi or don't. whatever.`,
+    `✨ **${member.displayName}** pulled up. let's see what they're about.`,
   ];
-  channel.send(greets[Math.floor(Math.random() * greets.length)]);
+  channel.send(greets[Math.floor(Math.random() * greets.length)]).catch(() => {});
 });
 
 client.on("guildMemberRemove", async (member) => {
@@ -131,10 +148,7 @@ client.on("guildMemberRemove", async (member) => {
 });
 
 client.on("guildMemberUpdate", async (oldMember, newMember) => {
-  // Detect server boost
-  const wasBooster = oldMember.premiumSince;
-  const isBooster = newMember.premiumSince;
-  if (!wasBooster && isBooster) {
+  if (!oldMember.premiumSince && newMember.premiumSince) {
     await events.onMemberBoost(newMember);
   }
 });

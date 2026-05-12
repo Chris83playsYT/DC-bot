@@ -1,7 +1,7 @@
 const VALID_MODES = ["intellectual", "normal", "crazy", "relaxed", "depressed", "flow"];
 
 const DEFAULT = () => ({
-  prefix: "!",
+  prefix: ",wg",
   automod: {
     enabled: true,
     blockInvites: true,
@@ -20,39 +20,28 @@ const DEFAULT = () => ({
   ],
   aiChat: true,
   aiMode: "normal",
+  logChannelId: null,
+  raidMode: false,
+  raidAccountAgeDays: 7,
 });
 
 const configs = new Map();
-
 let botOwnerId = null;
 
 module.exports = {
   VALID_MODES,
 
-  setOwner(id) {
-    botOwnerId = id;
-  },
-
-  isOwner(userId) {
-    return botOwnerId && userId === botOwnerId;
-  },
-
-  getOwnerId() {
-    return botOwnerId;
-  },
+  setOwner(id) { botOwnerId = id; },
+  isOwner(userId) { return botOwnerId && userId === botOwnerId; },
+  getOwnerId() { return botOwnerId; },
 
   get(guildId) {
     if (!configs.has(guildId)) configs.set(guildId, DEFAULT());
     return configs.get(guildId);
   },
 
-  getPrefix(guildId) {
-    return this.get(guildId).prefix;
-  },
-
-  setPrefix(guildId, p) {
-    this.get(guildId).prefix = p;
-  },
+  getPrefix(guildId) { return this.get(guildId).prefix; },
+  setPrefix(guildId, p) { this.get(guildId).prefix = p; },
 
   setAiMode(guildId, mode) {
     if (!VALID_MODES.includes(mode)) return false;
@@ -60,9 +49,17 @@ module.exports = {
     return true;
   },
 
-  getAllGuilds() {
-    return [...configs.entries()];
+  setLogChannel(guildId, channelId) {
+    this.get(guildId).logChannelId = channelId;
   },
+
+  setRaidMode(guildId, enabled, ageDays) {
+    const cfg = this.get(guildId);
+    cfg.raidMode = enabled;
+    if (ageDays !== undefined) cfg.raidAccountAgeDays = ageDays;
+  },
+
+  getAllGuilds() { return [...configs.entries()]; },
 
   format(guildId) {
     const c = this.get(guildId);
@@ -70,15 +67,16 @@ module.exports = {
     return [
       `**⚙️ Bot Configuration**`,
       `**Prefix:** \`${c.prefix}\``,
-      `**AI Chat (on mention):** ${c.aiChat ? "✅ on" : "❌ off"}`,
-      `**AI Mode:** \`${c.aiMode}\` — use \`!aimode [mode]\` to change`,
+      `**AI Chat:** ${c.aiChat ? "✅ on" : "❌ off"} | **AI Mode:** \`${c.aiMode}\``,
+      `**Log Channel:** ${c.logChannelId ? `<#${c.logChannelId}>` : "not set"}`,
+      `**Raid Mode:** ${c.raidMode ? `🚨 ON (kicks accounts < ${c.raidAccountAgeDays}d)` : "✅ off"}`,
       ``,
       `**🛡️ Auto-Mod**`,
       `Anti-spam: ${am.antiSpam ? "✅" : "❌"} (${am.spamLimit} msgs / ${am.spamWindowMs}ms)`,
       `Invite blocking: ${am.blockInvites ? "✅" : "❌"}`,
       `Bad word filter: ${am.filterBadWords ? "✅" : "❌"}`,
       `New account protection: ${am.newAccountProtection ? "✅" : "❌"} (${am.newAccountDays} days)`,
-      `Bad words list: ${c.badWords.length ? c.badWords.map(w => `\`${w}\``).join(", ") : "*(empty)*"}`,
+      `Bad words: ${c.badWords.length ? c.badWords.map(w => `\`${w}\``).join(", ") : "*(empty)*"}`,
       ``,
       `**⚠️ Warning Thresholds**`,
       ...c.warnThresholds.map(t => `${t.emoji} ${t.at} warns → ${t.label}`),

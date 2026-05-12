@@ -1,13 +1,15 @@
 const { EmbedBuilder } = require("discord.js");
 const poll = require("./poll");
 const config = require("../handlers/config");
+const premium = require("../handlers/premium");
+
+// ── RESPONSE BANKS ────────────────────────────────────────────────────────────
 
 const eightBallReplies = [
-  "It is certain.", "It is decidedly so.", "Without a doubt.",
-  "Yes, definitely.", "You may rely on it.", "As I see it, yes.",
-  "Most likely.", "Outlook good.", "Yes.", "Signs point to yes.",
-  "Reply hazy, try again.", "Ask again later.", "Better not tell you now.",
-  "Cannot predict now.", "Concentrate and ask again.",
+  "It is certain.", "Decidedly so.", "Without a doubt.", "Yes, definitely.",
+  "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
+  "Yes.", "Signs point to yes.", "Reply hazy.", "Ask again later.",
+  "Better not tell you now.", "Cannot predict now.", "Concentrate and ask again.",
   "Don't count on it.", "My reply is no.", "My sources say no.",
   "Outlook not so good.", "Very doubtful.",
 ];
@@ -15,82 +17,146 @@ const eightBallReplies = [
 const jokes = [
   "I told my dog he was adopted. He said 'I know, you throw like an idiot.'",
   "My therapist says I have trouble accepting things I can't change. We'll see about that.",
-  "Why did the scarecrow win an award? Because he was outstanding in his field. His coworkers hated him.",
-  "I'm reading a book about anti-gravity. Genuinely cannot put it down. Send help.",
+  "Why did the scarecrow win an award? Outstanding in his field. His coworkers hated him.",
+  "I'm reading a book about anti-gravity. Cannot put it down. Send help.",
   "My wife said I needed to grow up. I told her to get out of my blanket fort.",
-  "Why don't scientists trust atoms? They make up literally everything. Can't trust anyone.",
-  "I asked the librarian if they had books about paranoia. She whispered 'they're right behind you.' I haven't been back.",
-  "What do you call a fake noodle? An impasta. I've been holding that in for years.",
-  "I used to hate facial hair but then it grew on me. That's the whole joke.",
-  "My doctor told me I was going deaf. That was unexpected news.",
+  "Why don't scientists trust atoms? They make up literally everything.",
+  "I asked the librarian about paranoia books. She whispered 'they're right behind you.' Haven't been back.",
+  "What do you call a fake noodle? An impasta. Been holding that for years.",
   "A skeleton walks into a bar and orders a beer and a mop.",
   "I told my wife she was drawing her eyebrows too high. She looked surprised.",
-  "I'm on a seafood diet. I see food and I eat it. Classic.",
-  "Why do cows wear bells? Their horns don't work. I don't make the rules.",
+  "Why do cows wear bells? Their horns don't work.",
+  "My doctor said I was going deaf. That was unexpected news.",
+  "I used to hate facial hair but then it grew on me.",
+  "I'm on a seafood diet. I see food and I eat it.",
+  "Why did the math book look so sad? It had too many problems.",
+  "I tried to write a joke about paper but it was tearable.",
 ];
 
 const roasts = [
   "If brains were dynamite you wouldn't have enough to blow your hat off.",
   "You're the reason the gene pool needs a lifeguard. And warning signs.",
-  "I'd roast you harder but my mom said I'm not allowed to burn trash.",
+  "I'd roast you harder but my mom said I can't burn trash.",
   "You're not stupid. You just have a severe allergy to good ideas.",
-  "I've seen better looking faces on a clock. A broken one.",
-  "You're like a cloud — when you disappear it's a beautiful day. We've been waiting.",
-  "Some day you'll go far. And I hope you stay there.",
-  "You're proof that evolution can go in reverse. Congrats on the milestone.",
-  "I'm not saying you're dumb but you'd need a map to find your way out of a good idea.",
+  "I've seen better faces on a clock. A broken one.",
+  "You're like a cloud — when you disappear it's a beautiful day.",
+  "Some day you'll go far. I hope you stay there.",
+  "You're proof evolution can go in reverse.",
+  "You'd need a map to find your way out of a good idea.",
   "You have the energy of a wet napkin at a very important meeting.",
-  "You're not the dumbest person I've ever met but you better hope they don't die.",
+  "You're not the dumbest person I've met but hope they don't die.",
   "Your secrets are safe with me. I stopped listening immediately.",
-  "You have your entire life to be an idiot. Why not take today off.",
+  "You have your whole life to be an idiot. Take the day off.",
+  "I'm not saying you're boring but you'd make a great screensaver.",
+  "You're the human equivalent of a participation trophy.",
 ];
 
 const compliments = [
-  "You light up every room you walk into. Genuinely. Don't ruin it by talking about it.",
-  "Honestly? You're kind of awesome. Don't let it go to your head. Too late probably.",
-  "You have a genuinely great energy about you. Which is rare. Protect it.",
-  "The world is better with you in it. I don't say that lightly. Or ever. But here we are.",
-  "You make people around you better just by existing. That's actually insane. Good insane.",
+  "You light up every room. Don't ruin it by talking about it.",
+  "Honestly? You're kind of awesome. Don't let it go to your head.",
+  "You have genuinely great energy. Which is rare. Protect it.",
+  "The world is better with you in it. I don't say that lightly.",
+  "You make people around you better just by existing. That's insane. Good insane.",
   "Your vibe is unmatched and I'm saying that as someone who doesn't give compliments.",
-  "You're the human equivalent of finding $20 in a jacket you forgot about.",
-  "People probably don't tell you enough how genuinely solid you are. I'm fixing that now.",
-  "You're doing better than you think. That's not a guess, that's a fact.",
+  "You're the human equivalent of finding $20 in a forgotten jacket.",
+  "People probably don't tell you enough how genuinely solid you are.",
+  "You're doing better than you think. That's a fact, not a guess.",
+  "You have main character energy and you don't even know it.",
 ];
 
 const weirdguyReplies = [
   "👀 oh you said my name. what do you want. I was busy",
-  "nah I'm not doing this right now 😴 ...ok fine what",
+  "nah not right now 😴 ...ok fine what",
   "you rang? I was literally in the middle of nothing and you interrupted it",
-  "bro I JUST got here. give me a second. what.",
-  "…did you just say my name. why did you say my name.",
-  "I'm watching you. not in a creepy way. ok maybe a little. what do you need.",
-  "what do you WANT from me 😭 I'm so tired",
-  "ok fine I answered. happy? don't answer that.",
-  "I heard my name and chose to show up reluctantly. here I am.",
-  "you called? I almost didn't come. what's going on.",
+  "bro I JUST got here. what.",
+  "…did you just say my name. why.",
+  "I'm watching you. not creepy. ok maybe a little. what do you need.",
+  "what do you WANT 😭 I'm so tired",
+  "ok fine I'm here. happy? don't answer that.",
+  "I heard my name and showed up reluctantly. here I am.",
+  "you called? I almost didn't come.",
+  "I was thinking about something completely unrelated. what now.",
+  "every time bro. every single time.",
+];
+
+const truths = [
+  "What's the most embarrassing thing you've done in the last week?",
+  "What's a lie you've told that actually worked?",
+  "Have you ever blamed someone else for something you did?",
+  "What's the weirdest thing you've googled?",
+  "What's a secret you've kept from your closest friend?",
+  "Have you ever pretended to be asleep to avoid a conversation?",
+  "What's something you did as a kid that you'd never admit?",
+  "What's the pettiest thing you've ever done?",
+  "When's the last time you cried and why?",
+  "Have you ever talked bad about someone in this server?",
+];
+
+const dares = [
+  "Change your nickname to 'Big Embarrassing Energy' for the next 10 minutes.",
+  "Send a voice message saying something nice to someone you don't talk to often.",
+  "Type your most used phrase 10 times in a row.",
+  "Go 10 minutes without responding to anything.",
+  "React to the last 5 messages with the most random emoji you can find.",
+  "Write a 2-sentence story using only words that start with B.",
+  "Send a compliment to the person two spots above you in the member list.",
+  "Reply to the next 3 messages with only 'interesting.'",
+  "Change your profile picture for 5 minutes (honor system).",
+  "Send the most chaotic 10-word sentence you can think of.",
+];
+
+const wyrQuestions = [
+  "Would you rather always speak in rhymes or always have to sing instead of speaking?",
+  "Would you rather know when you'll die or how you'll die?",
+  "Would you rather have no internet for a month or no food except salad for a month?",
+  "Would you rather be able to talk to animals or speak all human languages?",
+  "Would you rather always be 10 minutes late or always be 2 hours early?",
+  "Would you rather never be able to use emojis or never be able to use punctuation?",
+  "Would you rather lose all your memories from age 0-10 or all memories from the last year?",
+  "Would you rather always have to say what you're thinking or never be able to speak again?",
+  "Would you rather be famous but hated or completely unknown but loved by those who know you?",
+  "Would you rather have a pause button for your life or a rewind button?",
+];
+
+const fortunes = [
+  "A great opportunity is closer than it appears. Maybe check your DMs.",
+  "The stars suggest you are doing better than you think. The stars also don't know you personally.",
+  "Something unexpected will happen today. (This is always true. Fortune delivered.)",
+  "Your energy is shifting. Probably because you moved your chair.",
+  "An old connection will resurface. Whether that's good is above my pay grade.",
+  "The universe has a plan for you. Whether you'll like it is a different question.",
+  "Success is near. Closer than yesterday, at least. Probably.",
+  "Someone is thinking about you right now. Make of that what you will.",
+  "The path forward requires one small step. Not a metaphor. Just take a walk maybe.",
+  "Today is a good day to try something different. Or not. Free will is real.",
 ];
 
 const rpsChoices = ["rock", "paper", "scissors"];
 const rpsWins = { rock: "scissors", paper: "rock", scissors: "paper" };
 
+const activeTrivia = new Map();
 const triviaQuestions = [
   { q: "What is the capital of France?", a: "paris", hint: "City of Lights" },
   { q: "How many sides does a hexagon have?", a: "6", hint: "It's in the name" },
   { q: "What planet is closest to the Sun?", a: "mercury", hint: "Starts with M" },
-  { q: "What is the largest ocean on Earth?", a: "pacific", hint: "It's truly massive" },
+  { q: "What is the largest ocean on Earth?", a: "pacific", hint: "Truly massive" },
   { q: "How many colors are in a rainbow?", a: "7", hint: "Roy G Biv" },
-  { q: "What gas do plants absorb from the atmosphere?", a: "carbon dioxide", hint: "You breathe it out" },
+  { q: "What gas do plants absorb?", a: "carbon dioxide", hint: "You breathe it out" },
   { q: "Who painted the Mona Lisa?", a: "leonardo da vinci", hint: "Also designed flying machines" },
-  { q: "What is the smallest planet in our solar system?", a: "mercury", hint: "Also closest to the Sun" },
+  { q: "What is the smallest planet?", a: "mercury", hint: "Also closest to the Sun" },
   { q: "In what year did the Titanic sink?", a: "1912", hint: "Early 20th century" },
-  { q: "What is the chemical symbol for gold?", a: "au", hint: "Latin: Aurum" },
+  { q: "Chemical symbol for gold?", a: "au", hint: "Latin: Aurum" },
+  { q: "How many bones in the adult human body?", a: "206", hint: "More than you'd guess" },
+  { q: "What is the fastest land animal?", a: "cheetah", hint: "Big spotted cat" },
+  { q: "How many strings does a standard guitar have?", a: "6", hint: "Standard. Not bass." },
+  { q: "What year did World War 2 end?", a: "1945", hint: "Mid-forties" },
+  { q: "What is the hardest natural substance on Earth?", a: "diamond", hint: "Very expensive" },
 ];
 
-const activeTrivia = new Map(); // channelId -> { question, answer, timeout }
+// ── HELPERS ───────────────────────────────────────────────────────────────────
 
 function timeAgo(date) {
-  const ms = Date.now() - date.getTime();
-  const days = Math.floor(ms / 86400000);
+  const days = Math.floor((Date.now() - date.getTime()) / 86400000);
   if (days < 1) return "today";
   if (days === 1) return "1 day ago";
   if (days < 30) return `${days} days ago`;
@@ -108,18 +174,42 @@ function mockText(text) {
   return text.split("").map((c, i) => i % 2 === 0 ? c.toLowerCase() : c.toUpperCase()).join("");
 }
 
-function ppSize(userId) {
-  // Deterministic based on userId so it's consistent per user
+function uwuify(text) {
+  return text
+    .replace(/r/g, "w").replace(/R/g, "W")
+    .replace(/l/g, "w").replace(/L/g, "W")
+    .replace(/n([aeiou])/gi, (_, v) => `ny${v}`)
+    .replace(/th/g, "d").replace(/Th/g, "D")
+    .replace(/!/g, "! uwu")
+    .replace(/\./g, ". owo");
+}
+
+function deterministicPercent(userId, salt = "") {
+  const str = userId + salt;
   let hash = 0;
-  for (const ch of userId) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
-  return Math.abs(hash) % 13; // 0-12 inches
+  for (const ch of str) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
+  return Math.abs(hash) % 101;
+}
+
+function deterministicN(userId, max, salt = "") {
+  const str = userId + salt;
+  let hash = 0;
+  for (const ch of str) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
+  return Math.abs(hash) % (max + 1);
+}
+
+function safeCalc(expr) {
+  if (!/^[\d\s+\-*/().%]+$/.test(expr)) throw new Error("invalid");
+  // eslint-disable-next-line no-new-func
+  return new Function(`"use strict"; return (${expr})`)();
+}
+
+function rand(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function shipScore(id1, id2) {
-  const combined = [id1, id2].sort().join("");
-  let hash = 0;
-  for (const ch of combined) hash = (hash * 31 + ch.charCodeAt(0)) & 0xffffffff;
-  return Math.abs(hash) % 101; // 0-100
+  return deterministicPercent([id1, id2].sort().join(""), "ship");
 }
 
 function shipBar(score) {
@@ -127,213 +217,341 @@ function shipBar(score) {
   return "❤️".repeat(filled) + "🖤".repeat(10 - filled);
 }
 
+function ppSize(userId) { return deterministicN(userId, 12, "pp"); }
+
+// ── MAIN EXPORT ───────────────────────────────────────────────────────────────
+
 module.exports = {
-  // Expose for trivia answer checking
   checkTrivia(msg) {
     const active = activeTrivia.get(msg.channel.id);
-    if (!active) return false;
-    if (msg.content.trim().toLowerCase() === active.answer) {
-      clearTimeout(active.timeout);
-      activeTrivia.delete(msg.channel.id);
-      msg.reply(`✅ **Correct!** Nice one, **${msg.member.displayName}**! The answer was \`${active.answer}\`.`).catch(() => {});
-      return true;
-    }
-    return false;
+    if (!active || msg.content.trim().toLowerCase() !== active.answer) return false;
+    clearTimeout(active.timeout);
+    activeTrivia.delete(msg.channel.id);
+    msg.reply(`✅ **Correct!** Nice one, **${msg.member.displayName}**! Answer was \`${active.answer}\`.`).catch(() => {});
+    return true;
   },
 
-  async handle(msg, baseCommand, args, p = "!") {
+  async handle(msg, baseCommand, args, p = ",wg") {
     switch (baseCommand) {
-      case "weirdguy": {
-        msg.reply(weirdguyReplies[Math.floor(Math.random() * weirdguyReplies.length)]);
-        break;
-      }
 
-      case "8ball": {
-        if (!args.length) return msg.reply(`ask me a question. e.g. \`${p}8ball will I win?\``);
-        const reply = eightBallReplies[Math.floor(Math.random() * eightBallReplies.length)];
-        msg.reply(`🎱 **${reply}**`);
-        break;
-      }
+      // ── CORE FUN ────────────────────────────────────────────────────
+      case "weirdguy":
+        msg.reply(rand(weirdguyReplies)); break;
+
+      case "8ball":
+        if (!args.length) return msg.reply(`ask me something. e.g. \`${p}8ball will I win?\``);
+        msg.reply(`🎱 **${rand(eightBallReplies)}**`); break;
 
       case "coinflip": {
-        const result = Math.random() < 0.5 ? "Heads" : "Tails";
-        const comments = {
-          Heads: ["heads. don't read into it.", "heads. nice.", "heads. you're welcome I guess."],
-          Tails: ["tails. sorry about that.", "tails. it is what it is.", "tails. the coin has spoken."],
-        };
-        msg.reply(`🪙 **${result}!** ${comments[result][Math.floor(Math.random() * 3)]}`);
+        const r = Math.random() < 0.5 ? "Heads" : "Tails";
+        msg.reply(`🪙 **${r}!** ${rand({ Heads: ["don't read into it.", "nice."], Tails: ["it is what it is.", "sorry."] }[r])}`);
         break;
       }
 
       case "roll": {
         const sides = parseInt(args[0]) || 6;
-        if (sides < 2 || sides > 1000) return msg.reply("pick a number of sides between 2 and 1000.");
-        const result = Math.floor(Math.random() * sides) + 1;
-        const comments = ["there you go.", "the dice have spoken.", "fate has decided.", "don't blame me."];
-        msg.reply(`🎲 rolled a **${result}** (d${sides}) — ${comments[Math.floor(Math.random() * comments.length)]}`);
+        if (sides < 2 || sides > 1000) return msg.reply("pick 2–1000 sides.");
+        msg.reply(`🎲 rolled a **${Math.floor(Math.random() * sides) + 1}** (d${sides}) — ${rand(["there you go.", "fate decided.", "don't blame me."])}`);
         break;
       }
 
-      case "joke": {
-        msg.reply(jokes[Math.floor(Math.random() * jokes.length)]);
-        break;
-      }
+      case "joke": msg.reply(rand(jokes)); break;
 
       case "roast": {
         const target = msg.mentions.members?.first();
-        const name = target ? target.displayName : "yourself";
-        msg.reply(`🔥 ${name}: ${roasts[Math.floor(Math.random() * roasts.length)]}`);
-        break;
+        msg.reply(`🔥 ${target ? target.displayName : "yourself"}: ${rand(roasts)}`); break;
       }
 
       case "compliment": {
         const target = msg.mentions.members?.first();
-        const name = target ? `<@${target.id}>` : msg.author.username;
-        msg.reply(`💖 ${name}: ${compliments[Math.floor(Math.random() * compliments.length)]}`);
-        break;
+        msg.reply(`💖 ${target ? `<@${target.id}>` : msg.author.username}: ${rand(compliments)}`); break;
       }
 
       case "rps": {
-        const userChoice = args[0]?.toLowerCase();
-        if (!rpsChoices.includes(userChoice)) {
-          return msg.reply(`pick \`rock\`, \`paper\`, or \`scissors\`. e.g. \`${p}rps rock\``);
-        }
-        const botChoice = rpsChoices[Math.floor(Math.random() * rpsChoices.length)];
+        const pick = args[0]?.toLowerCase();
+        if (!rpsChoices.includes(pick)) return msg.reply(`pick \`rock\`, \`paper\`, or \`scissors\`.`);
+        const bot = rand(rpsChoices);
         let result;
-        if (userChoice === botChoice) result = "it's a tie. I'll pretend I let you. 🤝";
-        else if (rpsWins[userChoice] === botChoice) result = "you win. I'm choosing not to process that emotionally. 🎉";
-        else result = "I win. obviously. was there ever any doubt. 😎";
-        msg.reply(`you chose **${userChoice}**, I chose **${botChoice}**. ${result}`);
+        if (pick === bot) result = "tie. I'll pretend I let you. 🤝";
+        else if (rpsWins[pick] === bot) result = "you win. not processing that emotionally. 🎉";
+        else result = "I win. obviously. 😎";
+        msg.reply(`you chose **${pick}**, I chose **${bot}**. ${result}`);
         break;
       }
 
-      case "poll": {
-        await poll.handle(msg, args);
-        break;
-      }
+      case "poll": await poll.handle(msg, args); break;
 
-      case "choose": {
-        if (args.length < 2) return msg.reply(`give me at least 2 options. e.g. \`${p}choose pizza tacos sushi\``);
-        const chosen = args[Math.floor(Math.random() * args.length)];
-        const comments = ["obviously.", "no contest.", "and honestly? correct.", "I would have picked the same.", "the data supports this choice."];
-        msg.reply(`🎯 **${chosen}** — ${comments[Math.floor(Math.random() * comments.length)]}`);
+      // ── CHOICE / GAMES ───────────────────────────────────────────────
+      case "choose":
+        if (args.length < 2) return msg.reply(`give me 2+ options. e.g. \`${p}choose pizza tacos sushi\``);
+        msg.reply(`🎯 **${rand(args)}** — ${rand(["obviously.", "no contest.", "correct choice.", "I would have picked the same."])}`);
         break;
-      }
 
       case "ship": {
         const members = msg.mentions.members;
-        if (!members || members.size < 2) return msg.reply(`mention 2 people to ship. e.g. \`${p}ship @user1 @user2\``);
+        if (!members || members.size < 2) return msg.reply(`mention 2 people. e.g. \`${p}ship @user1 @user2\``);
         const [m1, m2] = [...members.values()];
         const score = shipScore(m1.id, m2.id);
-        const bar = shipBar(score);
-        const comments = score >= 90 ? "soulmates honestly 💘" : score >= 70 ? "pretty solid tbh 💕" : score >= 50 ? "could work with effort 💛" : score >= 30 ? "it's complicated 🤔" : "I'm not gonna lie to you 💀";
-        msg.reply(`💘 **${m1.displayName}** + **${m2.displayName}**\n${bar}\n**${score}%** compatibility — ${comments}`);
+        const comment = score >= 90 ? "soulmates 💘" : score >= 70 ? "pretty solid 💕" : score >= 50 ? "could work 💛" : score >= 30 ? "it's complicated 🤔" : "I won't say it but you know 💀";
+        msg.reply(`💘 **${m1.displayName}** + **${m2.displayName}**\n${shipBar(score)}\n**${score}%** — ${comment}`);
         break;
       }
 
       case "rate": {
         if (!args.length) return msg.reply(`give me something to rate. e.g. \`${p}rate pizza\``);
-        const thing = args.join(" ");
         const score = Math.floor(Math.random() * 11);
-        const reactions = {
-          0: "absolute zero. historically bad.",
-          1: "I've seen better. I've seen worse. actually no I haven't.",
-          2: "rough.",
-          3: "not great, not terrible. actually terrible.",
-          4: "below average and aware of it.",
-          5: "exactly in the middle. safe. boring. fine.",
-          6: "okay. passable. it exists.",
-          7: "genuinely decent. I'm surprised.",
-          8: "solid. I have respect for this.",
-          9: "excellent. I don't give this easily.",
-          10: "perfect. I've achieved something by rating this.",
-        };
-        msg.reply(`📊 **${thing}**: **${score}/10** — ${reactions[score]}`);
+        const labels = ["absolute zero.", "historically bad.", "rough.", "not great.", "below average.", "perfectly mediocre.", "okay. it exists.", "genuinely decent.", "solid.", "excellent.", "10/10. peak."];
+        msg.reply(`📊 **${args.join(" ")}**: **${score}/10** — ${labels[score]}`);
         break;
       }
 
-      case "mock": {
-        if (!args.length) return msg.reply(`give me something to mock. e.g. \`${p}mock hello there\``);
-        msg.reply(mockText(args.join(" ")));
+      case "fight": {
+        const target = msg.mentions.members?.first();
+        if (!target || target.id === msg.client.user.id) {
+          return msg.reply(`💀 **${msg.member.displayName}** challenged me to a fight. I'm a bot. I have no health bar. I win by default.`);
+        }
+        const winner = Math.random() < 0.5 ? msg.member : target;
+        const loser = winner.id === msg.member.id ? target : msg.member;
+        const outcomes = [
+          `**${winner.displayName}** landed a critical hit and **${loser.displayName}** is down. gg.`,
+          `**${loser.displayName}** tripped on the way in. **${winner.displayName}** wins by technicality.`,
+          `After a 47-second staredown, **${loser.displayName}** blinked first. **${winner.displayName}** wins.`,
+          `**${winner.displayName}** used "superior vocabulary." **${loser.displayName}** couldn't recover.`,
+          `**${loser.displayName}** brought a knife to a vibe fight. **${winner.displayName}** wins on vibes.`,
+        ];
+        msg.reply(`⚔️ ${rand(outcomes)}`);
         break;
       }
 
-      case "reverse": {
-        if (!args.length) return msg.reply(`give me text to reverse. e.g. \`${p}reverse hello\``);
-        msg.reply(args.join(" ").split("").reverse().join(""));
+      case "roulette": {
+        const chambers = 6;
+        const fired = Math.floor(Math.random() * chambers) === 0;
+        if (fired) {
+          const minutes = Math.floor(Math.random() * 10) + 1;
+          msg.reply(`💀 **BANG.** <@${msg.author.id}> got hit — muted for **${minutes} minute(s)**. consequences are real.`);
+          await msg.member.timeout(minutes * 60_000, "Russian roulette consequence").catch(() => {});
+        } else {
+          const remainingOdds = ["5/6", "4/5", "3/4", "2/3", "1/2", "1/1"][Math.floor(Math.random() * 6)];
+          msg.reply(`🔫 *click.* **${msg.member.displayName}** survived. odds next time: worse.`);
+        }
         break;
       }
 
-      case "pp": {
-        const target = msg.mentions.members?.first() || msg.member;
-        const size = ppSize(target.id);
-        const bar = "8" + "=".repeat(size) + "D";
-        msg.reply(`📏 **${target.displayName}'s pp:**\n\`${bar}\` (${size} inches)\n${size >= 10 ? "…ok then." : size >= 7 ? "respectable." : size >= 4 ? "average, apparently." : size >= 2 ? "it's fine." : "…I won't say anything."}`);
-        break;
-      }
+      case "truth":
+        msg.reply(`🎯 **Truth:** ${rand(truths)}`); break;
 
-      case "avatar": {
-        const target = msg.mentions.members?.first() || msg.member;
-        const url = target.user.displayAvatarURL({ dynamic: true, size: 1024 });
-        const embed = new EmbedBuilder()
-          .setColor(target.displayHexColor === "#000000" ? "#5865f2" : target.displayHexColor)
-          .setAuthor({ name: `${target.user.tag}'s avatar`, iconURL: url })
-          .setImage(url)
-          .setFooter({ text: `Requested by ${msg.author.tag}` })
-          .setTimestamp();
-        await msg.reply({ embeds: [embed] });
-        break;
-      }
+      case "dare":
+        msg.reply(`🔥 **Dare:** ${rand(dares)}`); break;
+
+      case "wyr":
+        msg.reply(`🤔 **Would You Rather:**\n${rand(wyrQuestions)}`); break;
 
       case "trivia": {
         if (activeTrivia.has(msg.channel.id)) {
           const active = activeTrivia.get(msg.channel.id);
-          return msg.reply(`⏳ A trivia question is already active! **${active.question}** — hint: ${active.hint}`);
+          return msg.reply(`⏳ already a trivia going: **${active.question}** (hint: ${active.hint})`);
         }
-        const q = triviaQuestions[Math.floor(Math.random() * triviaQuestions.length)];
+        const q = rand(triviaQuestions);
         const timeout = setTimeout(() => {
           activeTrivia.delete(msg.channel.id);
-          msg.channel.send(`⏰ Time's up! The answer was **${q.a}**. nobody got it. embarrassing.`).catch(() => {});
+          msg.channel.send(`⏰ Time's up! Answer was **${q.a}**. nobody got it. embarrassing.`).catch(() => {});
         }, 30_000);
         activeTrivia.set(msg.channel.id, { question: q.q, answer: q.a, hint: q.hint, timeout });
-        msg.reply(`🧠 **Trivia Time!**\n${q.q}\n*Hint: ${q.hint}* — you have 30 seconds.`);
+        msg.reply(`🧠 **Trivia!** ${q.q}\n*Hint: ${q.hint}* — 30 seconds.`);
         break;
       }
 
-      case "aimode": {
-        if (!msg.member.permissions.has("Administrator") && !require("../handlers/config").isOwner(msg.author.id)) {
-          return msg.reply("🚫 Only Administrators can change the AI mode.");
-        }
-        const mode = args[0]?.toLowerCase();
-        const validModes = config.VALID_MODES;
-        if (!mode) {
-          const current = config.get(msg.guild.id).aiMode;
-          return msg.reply(`**Current AI mode:** \`${current}\`\nAvailable: ${validModes.map(m => `\`${m}\``).join(", ")}\nUsage: \`${p}aimode [mode]\``);
-        }
-        const ok = config.setAiMode(msg.guild.id, mode);
-        if (!ok) return msg.reply(`❌ Unknown mode. Choose from: ${validModes.map(m => `\`${m}\``).join(", ")}`);
-        const modeEmojis = { intellectual: "🎓", normal: "😎", crazy: "🤪", relaxed: "😌", depressed: "😔", flow: "🔥" };
-        msg.reply(`${modeEmojis[mode] || "🤖"} AI mode set to **${mode}**. I'll adapt immediately.`);
+      // ── TEXT MANIPULATION ────────────────────────────────────────────
+      case "mock":
+        if (!args.length) return msg.reply(`e.g. \`${p}mock hello there\``);
+        msg.reply(mockText(args.join(" "))); break;
+
+      case "reverse":
+        if (!args.length) return msg.reply(`e.g. \`${p}reverse hello\``);
+        msg.reply(args.join(" ").split("").reverse().join("")); break;
+
+      case "clap":
+        if (!args.length) return msg.reply(`e.g. \`${p}clap read the room\``);
+        msg.reply(args.join(" 👏 ") + " 👏"); break;
+
+      case "uwu":
+        if (!args.length) return msg.reply(`e.g. \`${p}uwu hello there\``);
+        msg.reply(uwuify(args.join(" "))); break;
+
+      case "emojify": {
+        if (!args.length) return msg.reply(`e.g. \`${p}emojify cool\``);
+        const emojis = ["🔥", "💀", "✨", "👀", "💯", "🗿", "😭", "🤝", "🎯", "⚡"];
+        const text = args.join(" ");
+        const result = text.split("").map(c => c + (Math.random() < 0.3 ? " " + rand(emojis) : "")).join("");
+        msg.reply(result.slice(0, 1000));
         break;
       }
 
-      case "invite": {
-        const clientId = msg.client.application?.id || msg.client.user.id;
-        const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot`;
+      case "encode": {
+        if (!args.length) return msg.reply(`e.g. \`${p}encode hello\``);
+        msg.reply(`\`${Buffer.from(args.join(" ")).toString("base64")}\``);
+        break;
+      }
+
+      case "decode": {
+        if (!args.length) return msg.reply(`e.g. \`${p}decode aGVsbG8=\``);
+        try {
+          msg.reply(Buffer.from(args[0], "base64").toString("utf8"));
+        } catch {
+          msg.reply("❌ That's not valid base64.");
+        }
+        break;
+      }
+
+      case "calc": {
+        if (!args.length) return msg.reply(`e.g. \`${p}calc 2 + 2\``);
+        try {
+          const result = safeCalc(args.join(" "));
+          msg.reply(`🧮 \`${args.join(" ")} = ${result}\``);
+        } catch {
+          msg.reply("❌ Invalid expression. Numbers and + - * / ( ) % only.");
+        }
+        break;
+      }
+
+      // ── PERSONAL METERS ──────────────────────────────────────────────
+      case "pp": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const size = ppSize(target.id);
+        const bar = "8" + "=".repeat(size) + "D";
+        const comment = size >= 10 ? "…ok then." : size >= 7 ? "respectable." : size >= 4 ? "average." : "it's fine.";
+        msg.reply(`📏 **${target.displayName}'s pp:**\n\`${bar}\` (${size} inches) — ${comment}`);
+        break;
+      }
+
+      case "howgay": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const score = deterministicPercent(target.id, "gay");
+        msg.reply(`🏳️‍🌈 **${target.displayName}** is **${score}% gay**. the algorithm has spoken.`);
+        break;
+      }
+
+      case "iq": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const score = 60 + deterministicN(target.id, 80, "iq");
+        const label = score >= 130 ? "genius" : score >= 110 ? "above average" : score >= 90 ? "average" : score >= 70 ? "below average" : "remarkable in its own way";
+        msg.reply(`🧠 **${target.displayName}'s IQ: ${score}** — ${label}. (this is not real science)`);
+        break;
+      }
+
+      case "rizz": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const score = deterministicPercent(target.id, "rizz");
+        const label = score >= 90 ? "unmatched rizz. dangerous." : score >= 70 ? "solid rizz. respectful." : score >= 50 ? "mid rizz. workable." : score >= 30 ? "rizz needs work." : "negative rizz. somehow impressive.";
+        msg.reply(`✨ **${target.displayName}'s Rizz Score: ${score}/100** — ${label}`);
+        break;
+      }
+
+      case "vibe": {
+        const vibes = [
+          "🔥 immaculate vibes right now. protect it.",
+          "😐 mid vibes. not bad not good. it's a wednesday energy.",
+          "💀 vibes are dead. pour one out.",
+          "✨ surprisingly good vibes. don't jinx it.",
+          "🌊 relaxed vibes. flowing. going with it.",
+          "⚡ chaotic vibes. unhinged but make it work.",
+          "😴 tired vibes. same honestly.",
+          "🗿 unbothered vibes. nothing can touch you.",
+        ];
+        msg.reply(rand(vibes)); break;
+      }
+
+      // ── SOCIAL ───────────────────────────────────────────────────────
+      case "highfive": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`mention someone. e.g. \`${p}highfive @user\``);
+        msg.reply(`🙌 **${msg.member.displayName}** high-fived **${target.displayName}**! o7`);
+        break;
+      }
+
+      case "hug": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`mention someone. e.g. \`${p}hug @user\``);
+        msg.reply(`🤗 **${msg.member.displayName}** hugged **${target.displayName}**! wholesome.`);
+        break;
+      }
+
+      case "slap": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`mention someone. e.g. \`${p}slap @user\``);
+        msg.reply(`👋 **${msg.member.displayName}** slapped **${target.displayName}** with a large trout. why.`);
+        break;
+      }
+
+      // ── PREMIUM COMMANDS 💎 ──────────────────────────────────────────
+      case "fortune": {
+        if (!premium.has(msg.author.id) && !config.isOwner(msg.author.id)) {
+          return msg.reply("💎 `fortune` is a **premium command**. Ask the server owner to grant you premium with `,wgowner premium add @you`.");
+        }
         const embed = new EmbedBuilder()
-          .setColor("#5865f2")
-          .setTitle("🔗 Invite Weird Guy")
-          .setDescription(`[Click here to add me to your server](${url})\n\nRequests **Administrator** — needed for full mod features. You can reduce permissions in the invite flow.`)
+          .setColor("#ffd700")
+          .setTitle("🔮 Your Fortune")
+          .setDescription(rand(fortunes))
+          .setFooter({ text: "💎 Premium | Weird Guy Fortune" })
           .setTimestamp();
         await msg.reply({ embeds: [embed] });
         break;
       }
 
+      case "vip": {
+        if (!premium.has(msg.author.id) && !config.isOwner(msg.author.id)) {
+          return msg.reply("💎 You're not a premium user. Ask the owner to promote you.");
+        }
+        const embed = new EmbedBuilder()
+          .setColor("#ffd700")
+          .setTitle("💎 Premium Member")
+          .setDescription(`**${msg.member.displayName}** is a verified premium member of this bot.`)
+          .addFields(
+            { name: "Exclusive Commands", value: "`fortune` `vip` `advice` `story`", inline: false },
+            { name: "Status", value: "✅ Active Premium", inline: true },
+          )
+          .setThumbnail(msg.author.displayAvatarURL({ dynamic: true }))
+          .setFooter({ text: "💎 Weird Guy Premium" })
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
+      case "advice": {
+        if (!premium.has(msg.author.id) && !config.isOwner(msg.author.id)) {
+          return msg.reply("💎 `advice` is a **premium command**.");
+        }
+        const adviceList = [
+          "Stop waiting for the right time. There isn't one. Start anyway.",
+          "The person you're comparing yourself to is also comparing themselves to someone else.",
+          "Your energy is your most valuable resource. Spend it on things that actually matter to you.",
+          "Most people are too focused on themselves to notice what you're embarrassed about.",
+          "You don't need more motivation. You need a smaller first step.",
+          "The version of you that future-you respects most is the one that showed up anyway.",
+        ];
+        msg.reply(`💎 **Advice for ${msg.member.displayName}:**\n${rand(adviceList)}`);
+        break;
+      }
+
+      case "story": {
+        if (!premium.has(msg.author.id) && !config.isOwner(msg.author.id)) {
+          return msg.reply("💎 `story` is a **premium command**.");
+        }
+        const topic = args.join(" ") || "a bot with feelings";
+        const stories = [
+          `Once there was ${topic}. Nobody expected much. Turns out, that was the whole point.`,
+          `The story of ${topic} begins like most things do: unexpectedly and slightly too late.`,
+          `${topic} walked in and the room changed. Not dramatically. Just... slightly. Permanently.`,
+          `Nobody talked about ${topic} until it was too late to ignore. Classic.`,
+        ];
+        msg.reply(`📖 **A Story About ${topic}:**\n${rand(stories)}`);
+        break;
+      }
+
+      // ── INFO COMMANDS ────────────────────────────────────────────────
       case "userinfo": {
         const target = msg.mentions.members?.first() || msg.member;
         const user = target.user;
-        const created = user.createdAt;
-        const joined = target.joinedAt;
         const roles = target.roles.cache
           .filter(r => r.id !== msg.guild.id)
           .sort((a, b) => b.position - a.position)
@@ -346,11 +564,11 @@ module.exports = {
           .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
           .addFields(
             { name: "Display Name", value: target.displayName, inline: true },
-            { name: "Account ID", value: user.id, inline: true },
+            { name: "ID", value: user.id, inline: true },
             { name: "Bot?", value: user.bot ? "Yes" : "No", inline: true },
-            { name: "Account Created", value: `${formatDate(created)}\n*(${timeAgo(created)})*`, inline: true },
-            { name: "Joined Server", value: joined ? `${formatDate(joined)}\n*(${timeAgo(joined)})*` : "Unknown", inline: true },
-            { name: `Roles (${roles.length})`, value: roles.length ? roles.join(" ") : "None", inline: false },
+            { name: "Account Created", value: `${formatDate(user.createdAt)}\n*(${timeAgo(user.createdAt)})*`, inline: true },
+            { name: "Joined Server", value: target.joinedAt ? `${formatDate(target.joinedAt)}\n*(${timeAgo(target.joinedAt)})*` : "Unknown", inline: true },
+            { name: `Roles (${roles.length})`, value: roles.length ? roles.join(" ") : "None" },
           )
           .setFooter({ text: `Requested by ${msg.author.tag}` })
           .setTimestamp();
@@ -362,27 +580,19 @@ module.exports = {
         const guild = msg.guild;
         await guild.fetch();
         const owner = await guild.fetchOwner().catch(() => null);
-        const channels = guild.channels.cache;
-        const textChannels = channels.filter(c => c.type === 0).size;
-        const voiceChannels = channels.filter(c => c.type === 2).size;
-        const categoryChannels = channels.filter(c => c.type === 4).size;
-        const roles = guild.roles.cache.size - 1;
-        const boostTier = ["None", "Level 1", "Level 2", "Level 3"][guild.premiumTier] || "None";
-        const verificationLevels = ["None", "Low", "Medium", "High", "Very High"];
-
+        const ch = guild.channels.cache;
         const embed = new EmbedBuilder()
           .setColor("#5865f2")
           .setAuthor({ name: guild.name, iconURL: guild.iconURL({ dynamic: true }) ?? undefined })
           .setThumbnail(guild.iconURL({ dynamic: true, size: 256 }))
           .addFields(
             { name: "Owner", value: owner ? `<@${owner.id}>` : "Unknown", inline: true },
-            { name: "Server ID", value: guild.id, inline: true },
+            { name: "ID", value: guild.id, inline: true },
             { name: "Created", value: `${formatDate(guild.createdAt)}\n*(${timeAgo(guild.createdAt)})*`, inline: true },
             { name: "Members", value: `👥 ${guild.memberCount.toLocaleString()}`, inline: true },
-            { name: "Roles", value: `🏷️ ${roles}`, inline: true },
-            { name: "Boost Status", value: `✨ ${boostTier} (${guild.premiumSubscriptionCount ?? 0} boosts)`, inline: true },
-            { name: "Channels", value: `💬 ${textChannels} text  🔊 ${voiceChannels} voice  📁 ${categoryChannels} categories`, inline: false },
-            { name: "Verification Level", value: verificationLevels[guild.verificationLevel] || "Unknown", inline: true },
+            { name: "Roles", value: `🏷️ ${guild.roles.cache.size - 1}`, inline: true },
+            { name: "Boosts", value: `✨ ${guild.premiumSubscriptionCount ?? 0}`, inline: true },
+            { name: "Channels", value: `💬 ${ch.filter(c => c.type === 0).size} text  🔊 ${ch.filter(c => c.type === 2).size} voice`, inline: false },
           )
           .setFooter({ text: `Requested by ${msg.author.tag}` })
           .setTimestamp();
@@ -391,52 +601,77 @@ module.exports = {
         break;
       }
 
-      case "help": {
-        msg.reply([
-          "**🎮 Fun Commands**",
-          `\`${p}weirdguy\` — wake me up (why would you do this)`,
-          `\`${p}8ball [question]\` — ask the magic 8 ball`,
-          `\`${p}coinflip\` — heads or tails`,
-          `\`${p}roll [sides]\` — roll a dice (default d6)`,
-          `\`${p}joke\` — hear a joke`,
-          `\`${p}roast [@user]\` — get cooked`,
-          `\`${p}compliment [@user]\` — feel good for once`,
-          `\`${p}rps [rock/paper/scissors]\` — play me`,
-          `\`${p}poll "Question" [opt1 opt2 ...]\` — reaction poll`,
-          `\`${p}choose [opt1] [opt2] ...\` — let me decide`,
-          `\`${p}ship @user1 @user2\` — compatibility rating`,
-          `\`${p}rate [thing]\` — I rate it out of 10`,
-          `\`${p}mock [text]\` — SpOnGeBob style`,
-          `\`${p}reverse [text]\` — reverse text`,
-          `\`${p}pp [@user]\` — you know what this is`,
-          `\`${p}avatar [@user]\` — full size avatar`,
-          `\`${p}trivia\` — 30-second trivia question`,
-          `\`${p}userinfo [@user]\` — member info`,
-          `\`${p}serverinfo\` — server stats`,
-          `\`${p}invite\` — get the bot invite link`,
-          "",
-          "**🤖 AI Chat**",
-          `Mention @Weird Guy to chat. Use \`${p}aimode [mode]\` to change personality.`,
-          `Modes: \`intellectual\` \`normal\` \`crazy\` \`relaxed\` \`depressed\` \`flow\``,
-          "",
-          "**🛡️ Admin Commands** *(Administrator or bot owner)*",
-          `\`${p}kick / ban / mute / unmute @user\``,
-          `\`${p}warn @user [reason]\` — warn + auto-actions at thresholds`,
-          `\`${p}warnings / clearwarns @user\``,
-          `\`${p}clear [1-100]\` — bulk delete messages`,
-          `\`${p}purge @user [1-100]\` — delete a user's recent messages`,
-          `\`${p}slowmode [seconds]\``,
-          `\`${p}lock / unlock\` — lock a channel`,
-          `\`${p}lockall / unlockall\` — lock or unlock ALL channels`,
-          `\`${p}nuke\` — delete and recreate channel (wipes history)`,
-          `\`${p}dehoist\` — rename hoisted members`,
-          `\`${p}aiclear [@user]\` — reset AI conversation history`,
-          `\`${p}config\` — view/change all bot settings`,
-          "",
-          "You can also run any command by mentioning me instead of using the prefix.",
-        ].join("\n"));
+      case "avatar": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const url = target.user.displayAvatarURL({ dynamic: true, size: 1024 });
+        const embed = new EmbedBuilder()
+          .setColor("#5865f2")
+          .setTitle(`${target.user.tag}'s avatar`)
+          .setImage(url)
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
         break;
       }
+
+      // ── CONFIG / BOT ─────────────────────────────────────────────────
+      case "aimode": {
+        if (!msg.member.permissions.has("Administrator") && !config.isOwner(msg.author.id)) {
+          return msg.reply("🚫 Only Administrators can change the AI mode.");
+        }
+        const mode = args[0]?.toLowerCase();
+        const validModes = config.VALID_MODES;
+        if (!mode) {
+          const current = config.get(msg.guild.id).aiMode;
+          return msg.reply(`**Current mode:** \`${current}\`\nModes: ${validModes.map(m => `\`${m}\``).join(", ")}\nUsage: \`${p}aimode [mode]\``);
+        }
+        const ok = config.setAiMode(msg.guild.id, mode);
+        if (!ok) return msg.reply(`❌ Unknown mode. Choose: ${validModes.map(m => `\`${m}\``).join(", ")}`);
+        const icons = { intellectual: "🎓", normal: "😎", crazy: "🤪", relaxed: "😌", depressed: "😔", flow: "🔥" };
+        msg.reply(`${icons[mode] || "🤖"} AI mode → **${mode}**`);
+        break;
+      }
+
+      case "invite": {
+        const clientId = msg.client.application?.id || msg.client.user.id;
+        const url = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=8&scope=bot`;
+        const embed = new EmbedBuilder()
+          .setColor("#5865f2")
+          .setTitle("🔗 Invite Weird Guy")
+          .setDescription(`[Click here to add me to your server](${url})\n\nRequests **Administrator** — needed for full mod features.`)
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
+      case "help":
+        msg.reply([
+          `**🎮 Fun Commands** \`${p}[command]\``,
+          `\`weirdguy\` \`8ball\` \`coinflip\` \`roll\` \`joke\` \`roast\` \`compliment\` \`rps\``,
+          `\`poll\` \`choose\` \`ship\` \`rate\` \`fight\` \`roulette\` \`trivia\``,
+          `\`truth\` \`dare\` \`wyr\` \`highfive\` \`hug\` \`slap\``,
+          `\`mock\` \`reverse\` \`clap\` \`uwu\` \`emojify\` \`encode\` \`decode\` \`calc\``,
+          `\`pp\` \`howgay\` \`iq\` \`rizz\` \`vibe\``,
+          `\`avatar\` \`userinfo\` \`serverinfo\` \`invite\``,
+          "",
+          `**💎 Premium Only** *(grant with \`,wgowner premium add @user\`)*`,
+          `\`fortune\` \`vip\` \`advice\` \`story [topic]\``,
+          "",
+          `**🤖 AI Chat** — mention @Weird Guy to chat`,
+          `\`${p}aimode [mode]\` — modes: \`intellectual\` \`normal\` \`crazy\` \`relaxed\` \`depressed\` \`flow\``,
+          "",
+          `**🛡️ Admin Commands** *(Administrator only)*`,
+          `\`kick\` \`ban\` \`softban\` \`unban\` \`mute\` \`unmute\` \`timeout\``,
+          `\`warn\` \`warnings\` \`clearwarns\``,
+          `\`clear\` \`purge\` \`slowmode\` \`lock\` \`unlock\` \`lockall\` \`unlockall\``,
+          `\`nuke\` \`dehoist\` \`role add/remove\` \`modnote\` \`notes\` \`raidmode\``,
+          `\`aiclear\` \`config\``,
+          "",
+          `**👑 Owner Only** — \`${p}owner [subcommand]\``,
+          `\`stats\` \`guilds\` \`broadcast\` \`invite\` \`dm\` \`reload\` \`premium\``,
+          "",
+          `Tip: use \`,wg [command]\` OR mention @Weird Guy [command].`,
+        ].join("\n"));
+        break;
 
       default:
         return false;
