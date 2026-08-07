@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "bPkdaI0KZ9zGmjc32KqdV"
+uri = "file://weird-guy-bot-complete.zip"
+type = "unspecified"
+title = "Weird Guy Bot — Complete ZIP"
+description = "Complete source export of the Discord bot, commands, handlers, watchdog, uptime API, shared packages, workspace configuration, and setup guide. Private secrets and generated dependencies are excluded."
