@@ -1,33 +1,32 @@
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const config = require("../handlers/config");
 const logger = require("../handlers/logger");
+const security = require("../handlers/security");
 
-const warnings = new Map();
-const modNotes = new Map();
+const storage = require("../handlers/storage");
 
 // Explicitly verify the member has at least one role with Administrator permission.
 // Also grants access to the registered bot owner unconditionally.
 function isAdmin(member) {
-  if (config.isOwner(member.id)) return true;
-  return member.roles.cache.some(role =>
-    role.permissions.has(PermissionsBitField.Flags.Administrator)
-  );
+  return security.isGuildAdmin(member);
 }
 
 function getWarnings(guildId, userId) {
-  return warnings.get(`${guildId}:${userId}`) || [];
+  return storage.state.warnings[`${guildId}:${userId}`] || [];
 }
 
 function addWarning(guildId, userId, reason, moderator) {
   const key = `${guildId}:${userId}`;
   const list = getWarnings(guildId, userId);
   list.push({ reason, moderator, at: new Date().toISOString() });
-  warnings.set(key, list);
+  storage.state.warnings[key] = list;
+  storage.save();
   return list.length;
 }
 
 function clearWarnings(guildId, userId) {
-  warnings.delete(`${guildId}:${userId}`);
+  delete storage.state.warnings[`${guildId}:${userId}`];
+  storage.save();
 }
 
 async function applyThreshold(channel, target, total, guildId) {
@@ -95,6 +94,7 @@ module.exports = {
       case "kick": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}kick @user [reason]\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't moderate yourself, the bot, or a protected administrator/owner.");
         if (!target.kickable) return msg.reply("I can't kick that member — they may outrank me.");
         const reason = args.slice(1).join(" ") || "No reason provided";
         await target.kick(reason);
@@ -106,6 +106,7 @@ module.exports = {
       case "ban": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}ban @user [reason]\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't moderate yourself, the bot, or a protected administrator/owner.");
         if (!target.bannable) return msg.reply("I can't ban that member — they may outrank me.");
         const reason = args.slice(1).join(" ") || "No reason provided";
         await target.ban({ reason });
@@ -117,6 +118,7 @@ module.exports = {
       case "softban": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}softban @user [reason]\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't moderate yourself, the bot, or a protected administrator/owner.");
         if (!target.bannable) return msg.reply("I can't ban that member.");
         const reason = args.slice(1).join(" ") || "Softban";
         await target.ban({ reason, deleteMessageSeconds: 604800 });
@@ -144,6 +146,7 @@ module.exports = {
       case "timeout": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}mute @user [minutes] [reason]\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't moderate yourself, the bot, or a protected administrator/owner.");
         const minutes = parseInt(args[1]) || 10;
         if (minutes < 1 || minutes > 40320) return msg.reply("Duration: 1–40320 minutes.");
         const reason = args.slice(2).join(" ") || "No reason provided";
@@ -165,6 +168,7 @@ module.exports = {
       case "warn": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply(`Usage: \`${prefix}warn @user [reason]\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't warn yourself, the bot, or a protected administrator/owner.");
         const reason = args.slice(1).join(" ") || "No reason provided";
         const total = addWarning(msg.guild.id, target.id, reason, msg.author.tag);
         const thresholds = config.get(msg.guild.id).warnThresholds;
@@ -314,9 +318,10 @@ module.exports = {
         const note = args.slice(1).join(" ");
         if (!target || !note) return msg.reply(`Usage: \`${prefix}modnote @user [note]\``);
         const key = `${msg.guild.id}:${target.id}`;
-        const notes = modNotes.get(key) || [];
+         const notes = storage.state.modNotes[key] || [];
         notes.push({ note, by: msg.author.tag, at: new Date().toISOString() });
-        modNotes.set(key, notes);
+         storage.state.modNotes[key] = notes;
+         storage.save();
         msg.reply(`📝 Note added for **${target.displayName}** (${notes.length} total).`);
         await logger.logAction(msg.guild, { type: "modnote", moderator: msg.author, target: target.user, reason: note });
         break;
@@ -325,7 +330,7 @@ module.exports = {
       case "notes": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply("Mention a member.");
-        const notes = modNotes.get(`${msg.guild.id}:${target.id}`) || [];
+         const notes = storage.state.modNotes[`${msg.guild.id}:${target.id}`] || [];
         if (!notes.length) return msg.reply(`✅ No mod notes for **${target.displayName}**.`);
         msg.reply(`📝 **${target.displayName}** — ${notes.length} note(s):\n${notes.map((n, i) => `**${i + 1}.** ${n.note} — *${n.by}*`).join("\n")}`);
         break;

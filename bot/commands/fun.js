@@ -2,6 +2,8 @@ const { EmbedBuilder } = require("discord.js");
 const poll = require("./poll");
 const config = require("../handlers/config");
 const premium = require("../handlers/premium");
+const levels = require("../handlers/levels");
+const security = require("../handlers/security");
 
 // ── RESPONSE BANKS ────────────────────────────────────────────────────────────
 
@@ -461,6 +463,26 @@ module.exports = {
         msg.reply(rand(vibes)); break;
       }
 
+      // ── SERVER LEVELS ─────────────────────────────────────────────────
+      case "rank":
+      case "level":
+      case "xp": {
+        const target = msg.mentions.members?.first() || msg.member;
+        await msg.reply(levels.formatProfile(msg, target.id));
+        break;
+      }
+
+      case "leaderboard":
+      case "levels": {
+        const rows = levels.leaderboard(msg.guild.id, 10);
+        if (!rows.length) return msg.reply("No XP has been earned here yet. Start talking. I believe in you almost.");
+        const lines = rows.map((row, index) =>
+          `**${index + 1}.** ${msg.guild.members.cache.get(row.userId)?.displayName || `<@${row.userId}>`} — Level **${row.level}** · **${row.xp.toLocaleString()} XP**`
+        );
+        await msg.reply(`**Server Level Leaderboard**\n${lines.join("\n")}`);
+        break;
+      }
+
       // ── SOCIAL ───────────────────────────────────────────────────────
       case "highfive": {
         const target = msg.mentions.members?.first();
@@ -615,7 +637,7 @@ module.exports = {
 
       // ── CONFIG / BOT ─────────────────────────────────────────────────
       case "aimode": {
-        if (!msg.member.permissions.has("Administrator") && !config.isOwner(msg.author.id)) {
+        if (!security.isGuildAdmin(msg.member)) {
           return msg.reply("🚫 Only Administrators can change the AI mode.");
         }
         const mode = args[0]?.toLowerCase();
@@ -626,7 +648,7 @@ module.exports = {
         }
         const ok = config.setAiMode(msg.guild.id, mode);
         if (!ok) return msg.reply(`❌ Unknown mode. Choose: ${validModes.map(m => `\`${m}\``).join(", ")}`);
-        const icons = { intellectual: "🎓", normal: "😎", crazy: "🤪", relaxed: "😌", depressed: "😔", flow: "🔥" };
+        const icons = { intellectual: "🎓", normal: "😎", crazy: "🤪", relaxed: "😌", depressed: "😔", flow: "🔥", cringe: "📱", hype: "📣", "chaotic-good": "🌀", therapist: "🫶", villain: "🦹", grandparent: "🧶" };
         msg.reply(`${icons[mode] || "🤖"} AI mode → **${mode}**`);
         break;
       }
@@ -651,13 +673,14 @@ module.exports = {
           `\`truth\` \`dare\` \`wyr\` \`highfive\` \`hug\` \`slap\``,
           `\`mock\` \`reverse\` \`clap\` \`uwu\` \`emojify\` \`encode\` \`decode\` \`calc\``,
           `\`pp\` \`howgay\` \`iq\` \`rizz\` \`vibe\``,
+          `\`rank\` / \`level\` — view XP and rank · \`leaderboard\` — top 10 in this server`,
           `\`avatar\` \`userinfo\` \`serverinfo\` \`invite\``,
           "",
           `**💎 Premium Only** *(grant with \`,wgowner premium add @user\`)*`,
           `\`fortune\` \`vip\` \`advice\` \`story [topic]\``,
           "",
           `**🤖 AI Chat** — mention @Weird Guy to chat`,
-          `\`${p}aimode [mode]\` — modes: \`intellectual\` \`normal\` \`crazy\` \`relaxed\` \`depressed\` \`flow\``,
+          `\`${p}aimode [mode]\` — modes: ${config.VALID_MODES.map(m => `\`${m}\``).join(" ")}`,
           "",
           `**🛡️ Admin Commands** *(Administrator only)*`,
           `\`kick\` \`ban\` \`softban\` \`unban\` \`mute\` \`unmute\` \`timeout\``,

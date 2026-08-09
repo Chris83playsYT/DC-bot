@@ -1,65 +1,32 @@
+// Deliberate one-shot launcher.
+//
+// This file intentionally does not restart the bot when it exits. The bot
+// should only be started again by an explicit workflow restart or by the
+// owner reset command.
 const { spawn } = require("child_process");
 const path = require("path");
 
-const BOT_SCRIPT = path.join(__dirname, "index.js");
-const MIN_UPTIME_MS = 5_000;
-const MAX_RESTARTS = 10;
-const RESTART_COOLDOWN_MS = 30_000;
+const child = spawn(process.execPath, [path.join(__dirname, "index.js")], {
+  stdio: "inherit",
+  env: process.env,
+});
 
-let restarts = 0;
-let lastStart = 0;
+child.on("exit", (code, signal) => {
+  if (signal) {
+    console.log(`[launcher] Bot stopped by signal ${signal}. No automatic restart.`);
+  } else {
+    console.log(`[launcher] Bot stopped with code ${code ?? 0}. No automatic restart.`);
+  }
+  process.exit(code ?? 0);
+});
 
-function startBot() {
-  lastStart = Date.now();
+child.on("error", (err) => {
+  console.error("[launcher] Failed to start bot:", err?.message || err);
+  process.exit(1);
+});
 
-  console.log(`[watchdog] Starting bot... (restart #${restarts})`);
-
-  const child = spawn(process.execPath, [BOT_SCRIPT], {
-    stdio: "inherit",
-    env: process.env,
-  });
-
-  child.on("exit", (code, signal) => {
-    const uptime = Date.now() - lastStart;
-
-    if (code === 0) {
-      console.log("[watchdog] Bot exited cleanly. Shutting down.");
-      process.exit(0);
-    }
-
-    console.error(`[watchdog] Bot crashed (code=${code}, signal=${signal}, uptime=${uptime}ms)`);
-
-    if (restarts >= MAX_RESTARTS) {
-      console.error(`[watchdog] Reached max restarts (${MAX_RESTARTS}). Giving up.`);
-      process.exit(1);
-    }
-
-    restarts++;
-
-    if (uptime < MIN_UPTIME_MS) {
-      console.log(`[watchdog] Bot crashed too fast — waiting ${RESTART_COOLDOWN_MS / 1000}s before restart...`);
-      setTimeout(startBot, RESTART_COOLDOWN_MS);
-    } else {
-      restarts = 0;
-      console.log("[watchdog] Restarting bot in 2s...");
-      setTimeout(startBot, 2_000);
-    }
-  });
-
-  child.on("error", (err) => {
-    console.error("[watchdog] Failed to spawn bot process:", err.message);
-    setTimeout(startBot, RESTART_COOLDOWN_MS);
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.on(signal, () => {
+    child.kill(signal);
   });
 }
-
-process.on("SIGTERM", () => {
-  console.log("[watchdog] Received SIGTERM — shutting down.");
-  process.exit(0);
-});
-
-process.on("SIGINT", () => {
-  console.log("[watchdog] Received SIGINT — shutting down.");
-  process.exit(0);
-});
-
-startBot();

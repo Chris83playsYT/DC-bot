@@ -1,24 +1,28 @@
 // Premium users get exclusive commands. Granted globally by the bot owner.
-const premiumUsers = new Set();
+const storage = require("./storage");
 
 module.exports = {
   grant(userId) {
-    premiumUsers.add(userId);
+    if (!storage.state.premiumUsers.includes(userId)) {
+      storage.state.premiumUsers.push(userId);
+      storage.save();
+    }
   },
 
   revoke(userId) {
-    premiumUsers.delete(userId);
+    storage.state.premiumUsers = storage.state.premiumUsers.filter(id => id !== userId);
+    storage.save();
   },
 
   has(userId) {
-    return premiumUsers.has(userId);
+    return storage.state.premiumUsers.includes(userId);
   },
 
   list() {
-    return [...premiumUsers];
+    return [...storage.state.premiumUsers];
   },
 
   count() {
-    return premiumUsers.size;
+    return storage.state.premiumUsers.length;
   },
 };

@@ -1,0 +1,1 @@
+- [Bot lifecycle](bot-lifecycle.md) — the Discord bot must not auto-restart after it exits; recovery is an explicit manual workflow start.

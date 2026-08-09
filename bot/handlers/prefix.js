@@ -1,15 +1,13 @@
-const DEFAULT_PREFIX = "!";
-
-const guildPrefixes = new Map();
+const config = require("./config");
 
 module.exports = {
   get(guildId) {
-    return guildPrefixes.get(guildId) ?? DEFAULT_PREFIX;
+    return config.getPrefix(guildId);
   },
 
   set(guildId, prefix) {
-    guildPrefixes.set(guildId, prefix);
+    config.setPrefix(guildId, prefix);
   },
 
-  DEFAULT_PREFIX,
+  DEFAULT_PREFIX: ",wg",
 };

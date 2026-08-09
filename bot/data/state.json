@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "configs": {
+    "1503421306643808518": {
+      "prefix": ",wg",
+      "automod": {
+        "enabled": true,
+        "blockInvites": true,
+        "filterBadWords": true,
+        "antiSpam": true,
+        "newAccountProtection": true,
+        "newAccountDays": 7,
+        "spamLimit": 5,
+        "spamWindowMs": 4000,
+        "maxMentions": 5
+      },
+      "badWords": [
+        "badword1",
+        "badword2"
+      ],
+      "warnThresholds": [
+        {
+          "at": 3,
+          "action": "mute",
+          "durationMs": 600000,
+          "label": "auto-muted for 10 minutes",
+          "emoji": "🔇"
+        },
+        {
+          "at": 5,
+          "action": "kick",
+          "label": "auto-kicked from the server",
+          "emoji": "👢"
+        },
+        {
+          "at": 7,
+          "action": "ban",
+          "label": "auto-banned from the server",
+          "emoji": "🔨"
+        }
+      ],
+      "aiChat": true,
+      "aiMode": "normal",
+      "aiModel": "x-ai/grok-4.5",
+      "aiTemperature": 0.85,
+      "aiMaxHistory": 12,
+      "aiCooldownMs": 2500,
+      "adminRoleIds": [],
+      "logChannelId": null,
+      "raidMode": false,
+      "raidAccountAgeDays": 7,
+      "levels": {
+        "enabled": true,
+        "xpPerMessage": 8,
+        "xpBonusMax": 12,
+        "xpPerCommand": 5,
+        "xpCooldownSeconds": 45,
+        "levelUpChannelId": null
+      }
+    },
+    "1463346110566502443": {
+      "prefix": ",wg",
+      "automod": {
+        "enabled": true,
+        "blockInvites": true,
+        "filterBadWords": true,
+        "antiSpam": true,
+        "newAccountProtection": true,
+        "newAccountDays": 7,
+        "spamLimit": 5,
+        "spamWindowMs": 4000,
+        "maxMentions": 5
+      },
+      "badWords": [
+        "badword1",
+        "badword2"
+      ],
+      "warnThresholds": [
+        {
+          "at": 3,
+          "action": "mute",
+          "durationMs": 600000,
+          "label": "auto-muted for 10 minutes",
+          "emoji": "🔇"
+        },
+        {
+          "at": 5,
+          "action": "kick",
+          "label": "auto-kicked from the server",
+          "emoji": "👢"
+        },
+        {
+          "at": 7,
+          "action": "ban",
+          "label": "auto-banned from the server",
+          "emoji": "🔨"
+        }
+      ],
+      "aiChat": true,
+      "aiMode": "normal",
+      "aiModel": "x-ai/grok-4.5",
+      "aiTemperature": 0.85,
+      "aiMaxHistory": 12,
+      "aiCooldownMs": 2500,
+      "adminRoleIds": [],
+      "logChannelId": null,
+      "raidMode": false,
+      "raidAccountAgeDays": 7,
+      "levels": {
+        "enabled": true,
+        "xpPerMessage": 8,
+        "xpBonusMax": 12,
+        "xpPerCommand": 5,
+        "xpCooldownSeconds": 45,
+        "levelUpChannelId": null
+      }
+    },
+    "1389933784706580520": {
+      "prefix": ",wg",
+      "automod": {
+        "enabled": true,
+        "blockInvites": true,
+        "filterBadWords": true,
+        "antiSpam": true,
+        "newAccountProtection": true,
+        "newAccountDays": 7,
+        "spamLimit": 5,
+        "spamWindowMs": 4000,
+        "maxMentions": 5
+      },
+      "badWords": [
+        "badword1",
+        "badword2"
+      ],
+      "warnThresholds": [
+        {
+          "at": 3,
+          "action": "mute",
+          "durationMs": 600000,
+          "label": "auto-muted for 10 minutes",
+          "emoji": "🔇"
+        },
+        {
+          "at": 5,
+          "action": "kick",
+          "label": "auto-kicked from the server",
+          "emoji": "👢"
+        },
+        {
+          "at": 7,
+          "action": "ban",
+          "label": "auto-banned from the server",
+          "emoji": "🔨"
+        }
+      ],
+      "aiChat": true,
+      "aiMode": "crazy",
+      "aiModel": "x-ai/grok-4.5",
+      "aiTemperature": 0.85,
+      "aiMaxHistory": 12,
+      "aiCooldownMs": 2500,
+      "adminRoleIds": [],
+      "logChannelId": null,
+      "raidMode": false,
+      "raidAccountAgeDays": 7,
+      "levels": {
+        "enabled": true,
+        "xpPerMessage": 8,
+        "xpBonusMax": 12,
+        "xpPerCommand": 5,
+        "xpCooldownSeconds": 45,
+        "levelUpChannelId": null
+      }
+    }
+  },
+  "levels": {
+    "1503421306643808518": {
+      "1385955123225825402": {
+        "xp": 65,
+        "messages": 3,
+        "commands": 4,
+        "lastAwardAt": 1786129989342
+      }
+    },
+    "1463346110566502443": {
+      "1385955123225825402": {
+        "xp": 361,
+        "messages": 24,
+        "commands": 3,
+        "lastAwardAt": 1786134271029
+      },
+      "1332518492620197961": {
+        "xp": 297,
+        "messages": 21,
+        "commands": 1,
+        "lastAwardAt": 1786135201766
+      },
+      "1508551350349205544": {
+        "xp": 135,
+        "messages": 10,
+        "commands": 0,
+        "lastAwardAt": 1786132185074
+      },
+      "1392532555282124942": {
+        "xp": 9,
+        "messages": 1,
+        "commands": 0,
+        "lastAwardAt": 1786127932901
+      },
+      "1416015372926193705": {
+        "xp": 113,
+        "messages": 9,
+        "commands": 0,
+        "lastAwardAt": 1786134047875
+      },
+      "1414014466961576127": {
+        "xp": 77,
+        "messages": 5,
+        "commands": 0,
+        "lastAwardAt": 1786132144464
+      },
+      "1200858548452741273": {
+        "xp": 149,
+        "messages": 12,
+        "commands": 0,
+        "lastAwardAt": 1786132206265
+      },
+      "1473152415191793827": {
+        "xp": 53,
+        "messages": 4,
+        "commands": 0,
+        "lastAwardAt": 1786132183292
+      }
+    },
+    "1389933784706580520": {
+      "1385955123225825402": {
+        "xp": 498,
+        "messages": 27,
+        "commands": 19,
+        "lastAwardAt": 1786134999449
+      },
+      "1493003946787213313": {
+        "xp": 71,
+        "messages": 5,
+        "commands": 0,
+        "lastAwardAt": 1786131038016
+      },
+      "1319137404845555804": {
+        "xp": 23,
+        "messages": 2,
+        "commands": 0,
+        "lastAwardAt": 1786134815261
+      }
+    }
+  },
+  "premiumUsers": [],
+  "warnings": {},
+  "modNotes": {}
+}

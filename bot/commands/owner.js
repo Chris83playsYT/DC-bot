@@ -2,9 +2,10 @@ const { EmbedBuilder } = require("discord.js");
 const config = require("../handlers/config");
 const premium = require("../handlers/premium");
 
-// Password stored in env so it can be changed without touching code.
-// Default matches what was configured at setup.
-const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "The_Real_Yes83";
+// Password must be stored as a Replit Secret. Never keep an owner credential in source.
+const storage = require("../handlers/storage");
+const ai = require("../handlers/ai");
+const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "";
 
 // Session cache — once verified, no re-entry needed for 5 minutes.
 const ownerSessions = new Map(); // userId -> expiry timestamp
@@ -52,6 +53,21 @@ async function execute(msg, args) {
       break;
     }
 
+    case "overview": {
+      const guilds = msg.client.guilds.cache;
+      const configured = config.getAllGuilds().length;
+      await msg.reply([
+        "**Owner Control Center**",
+        `Servers connected: **${guilds.size}**`,
+        `Servers with saved settings: **${configured}**`,
+        `Premium users: **${premium.count()}**`,
+        `AI model: \`${ai.getModel()}\``,
+        `State file: \`${storage.file}\``,
+        "Use `stats`, `guilds`, `config <server-id>`, `clearai <server-id>`, or `reset` for control actions.",
+      ].join("\n"));
+      break;
+    }
+
     case "guilds": {
       const guilds = msg.client.guilds.cache;
       const list = [...guilds.values()]
@@ -63,6 +79,22 @@ async function execute(msg, args) {
         .setDescription(list || "None")
         .setTimestamp();
       await msg.reply({ embeds: [embed] });
+      break;
+    }
+
+    case "config": {
+      const guildId = args[1] || msg.guild?.id;
+      const guild = msg.client.guilds.cache.get(guildId);
+      if (!guild) return msg.reply("I can't find that server in my current connection.");
+      await msg.reply(`**${guild.name}** (` + guild.id + `)\n` + config.format(guild.id));
+      break;
+    }
+
+    case "clearai": {
+      const guildId = args[1] || msg.guild?.id;
+      if (!guildId) return msg.reply("Provide a server ID.");
+      ai.clearGuild(guildId);
+      await msg.reply(`✅ Cleared in-memory AI conversations for server \`${guildId}\`.`);
       break;
     }
 
@@ -109,7 +141,7 @@ async function execute(msg, args) {
 
     case "reload":
     case "reset": {
-      await msg.reply("🔄 Restarting — watchdog will bring it back in seconds.");
+      await msg.reply("⏹️ Stopping the bot now. It will stay stopped until you manually start the Discord Bot workflow again.");
       setTimeout(() => process.exit(1), 500);
       break;
     }
@@ -152,31 +184,19 @@ async function execute(msg, args) {
       break;
     }
 
-    case "eval": {
-      const code = args.slice(1).join(" ");
-      if (!code) return msg.reply("Provide code to eval.");
-      try {
-        // eslint-disable-next-line no-eval
-        let result = eval(code);
-        if (typeof result !== "string") result = require("util").inspect(result, { depth: 1 });
-        await msg.reply(`\`\`\`js\n${String(result).slice(0, 1900)}\n\`\`\``);
-      } catch (err) {
-        await msg.reply(`❌ \`${err.message}\``);
-      }
-      break;
-    }
-
     default: {
       await msg.reply([
         "**👑 Owner Commands** — `,wgowner [sub]`",
+        "`overview` — professional control center",
         "`stats` — bot stats and uptime",
         "`guilds` — list all servers",
         "`broadcast [message]` — message all servers",
         "`invite` — bot invite link",
         "`dm @user [message]` — DM any user",
-        "`reload` / `reset` — restart bot",
+        "`reload` / `reset` — stop bot; manual workflow start required",
         "`premium add/remove/list @user` — manage premium",
-        "`eval [code]` — run JS",
+        "`config [server-id]` — inspect a server's isolated settings",
+        "`clearai [server-id]` — clear a server's AI context",
       ].join("\n"));
     }
   }
@@ -187,6 +207,11 @@ module.exports = {
     // Step 1 — Must be the registered bot owner by ID
     if (!config.isOwner(msg.author.id)) {
       await msg.reply("🔒 Owner-only command.");
+      return true;
+    }
+
+    if (!OWNER_PASSWORD) {
+      await msg.reply("🔐 Owner commands are temporarily locked because `OWNER_PASSWORD` is not configured as a private secret.");
       return true;
     }
 

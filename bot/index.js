@@ -10,6 +10,8 @@ const ai = require("./handlers/ai");
 const config = require("./handlers/config");
 const events = require("./handlers/events");
 const keepalive = require("./handlers/keepalive");
+const levels = require("./handlers/levels");
+const storage = require("./handlers/storage");
 
 // Start keep-alive HTTP server (ping /ping with UptimeRobot)
 keepalive.start();
@@ -85,6 +87,7 @@ async function routeCommand(msg, commandText, guildPrefix) {
 
   if (baseCommand === "config") {
     await configure.handle(msg, args);
+    levels.recordCommand(msg);
     return true;
   }
 
@@ -94,9 +97,14 @@ async function routeCommand(msg, commandText, guildPrefix) {
   }
 
   const handled = await fun.handle(msg, baseCommand, args, guildPrefix);
-  if (handled) return true;
+  if (handled) {
+    levels.recordCommand(msg);
+    return true;
+  }
 
-  return admin.handle(msg, guildPrefix + baseCommand, args, config);
+  const adminHandled = await admin.handle(msg, guildPrefix + baseCommand, args, config);
+  if (adminHandled) levels.recordCommand(msg);
+  return adminHandled;
 }
 
 client.on("messageCreate", async (msg) => {
@@ -107,6 +115,7 @@ client.on("messageCreate", async (msg) => {
     const blocked = await automod.check(msg);
     if (blocked) return;
 
+    levels.recordMessage(msg);
     const guildPrefix = config.getPrefix(msg.guild.id);
     const isMentioned = msg.mentions.has(client.user);
 
@@ -184,4 +193,17 @@ process.on("unhandledRejection", (err) => {
   console.error("Unhandled rejection:", err?.message ?? err);
 });
 
-client.login(process.env.TOKEN);
+process.on("SIGTERM", () => {
+  storage.flush();
+  client.destroy();
+});
+
+process.on("SIGINT", () => {
+  storage.flush();
+  client.destroy();
+});
+
+client.login(process.env.TOKEN).catch((err) => {
+  console.error("Discord login failed:", err?.message || err);
+  process.exit(1);
+});

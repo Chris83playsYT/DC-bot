@@ -7,3 +7,10 @@ uri = "file://weird-guy-bot-complete.zip"
 type = "unspecified"
 title = "Weird Guy Bot — Complete ZIP"
 description = "Complete source export of the Discord bot, commands, handlers, watchdog, uptime API, shared packages, workspace configuration, and setup guide. Private secrets and generated dependencies are excluded."
+
+[[outputs]]
+id = "6fSyq14dtNaRECRyeZ5Jt"
+uri = "file://exports/weird-guy-bot-upgraded.zip"
+type = "unspecified"
+title = "Weird Guy Bot — Upgraded ZIP"
+description = "Current source export with per-server settings, server admin controls, persistent leveling, security updates, and the one-shot no-auto-restart launcher. Secrets, live state, dependencies, and Git metadata were excluded."

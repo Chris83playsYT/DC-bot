@@ -1,7 +1,9 @@
 const config = require("../handlers/config");
+const security = require("../handlers/security");
+const storage = require("../handlers/storage");
 
 function canConfigure(member) {
-  return member.permissions.has("Administrator") || config.isOwner(member.id);
+  return security.isGuildAdmin(member);
 }
 
 module.exports = {
@@ -24,7 +26,7 @@ module.exports = {
       case "prefix": {
         const p = args[1];
         if (!p || p.length > 5) return msg.reply("Provide a prefix (1–5 chars). e.g. `,wgconfig prefix !`");
-        cfg.prefix = p;
+        config.setPrefix(msg.guild.id, p);
         msg.reply(`✅ Prefix set to \`${p}\``);
         break;
       }
@@ -33,6 +35,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.aiChat = val === "on";
+        storage.save();
         msg.reply(`✅ AI chat on mention is now **${val}**.`);
         break;
       }
@@ -63,6 +66,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.automod.enabled = val === "on";
+        storage.save();
         msg.reply(`✅ Auto-mod is now **${val}**.`);
         break;
       }
@@ -71,6 +75,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.automod.blockInvites = val === "on";
+        storage.save();
         msg.reply(`✅ Invite blocking is now **${val}**.`);
         break;
       }
@@ -79,6 +84,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.automod.antiSpam = val === "on";
+        storage.save();
         msg.reply(`✅ Anti-spam is now **${val}**.`);
         break;
       }
@@ -87,6 +93,7 @@ module.exports = {
         const n = parseInt(args[1]);
         if (isNaN(n) || n < 2 || n > 20) return msg.reply("Provide 2–20.");
         cfg.automod.spamLimit = n;
+        storage.save();
         msg.reply(`✅ Spam limit set to **${n} messages**.`);
         break;
       }
@@ -95,6 +102,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.automod.filterBadWords = val === "on";
+        storage.save();
         msg.reply(`✅ Bad word filter is now **${val}**.`);
         break;
       }
@@ -108,11 +116,13 @@ module.exports = {
         if (action === "add") {
           if (cfg.badWords.includes(word)) return msg.reply(`\`${word}\` is already listed.`);
           cfg.badWords.push(word);
+          storage.save();
           msg.reply(`✅ Added \`${word}\`.`);
         } else {
           const idx = cfg.badWords.indexOf(word);
           if (idx === -1) return msg.reply(`\`${word}\` not found.`);
           cfg.badWords.splice(idx, 1);
+          storage.save();
           msg.reply(`✅ Removed \`${word}\`.`);
         }
         break;
@@ -122,6 +132,7 @@ module.exports = {
         const val = args[1]?.toLowerCase();
         if (!["on","off"].includes(val)) return msg.reply("Use `on` or `off`.");
         cfg.automod.newAccountProtection = val === "on";
+        storage.save();
         msg.reply(`✅ New account protection is now **${val}**.`);
         break;
       }
@@ -130,8 +141,64 @@ module.exports = {
         const n = parseInt(args[1]);
         if (isNaN(n) || n < 1 || n > 365) return msg.reply("Provide 1–365 days.");
         cfg.automod.newAccountDays = n;
+        storage.save();
         msg.reply(`✅ New account threshold set to **${n} days**.`);
         break;
+      }
+
+      case "maxmentions": {
+        const n = parseInt(args[1], 10);
+        if (!Number.isInteger(n) || n < 2 || n > 20) return msg.reply("Provide a limit from 2–20 mentions.");
+        cfg.automod.maxMentions = n;
+        storage.save();
+        return msg.reply(`✅ Mention protection set to **${n} mentions** per message.`);
+      }
+
+      case "adminrole": {
+        const action = args[1]?.toLowerCase();
+        const role = msg.mentions.roles?.first();
+        if (!["add", "remove"].includes(action) || !role) {
+          return msg.reply("Usage: `,wgconfig adminrole add @role` or `remove @role`.");
+        }
+        if (action === "add" && !role.permissions.has("Administrator")) {
+          return msg.reply("That role does not have Discord's **Administrator** permission. Choose a role that does.");
+        }
+        if (action === "add") {
+          config.addAdminRole(msg.guild.id, role.id);
+          return msg.reply(`✅ **${role.name}** can now use server admin commands.`);
+        }
+        config.removeAdminRole(msg.guild.id, role.id);
+        return msg.reply(`✅ Removed **${role.name}** from the bot admin role list.`);
+      }
+
+      case "levels": {
+        const val = args[1]?.toLowerCase();
+        if (!["on", "off"].includes(val)) return msg.reply("Use `on` or `off`.");
+        cfg.levels.enabled = val === "on";
+        storage.save();
+        return msg.reply(`✅ Server leveling is now **${val}**.`);
+      }
+
+      case "levelchannel": {
+        const val = args[1]?.toLowerCase();
+        if (val === "off" || val === "none") {
+          cfg.levels.levelUpChannelId = null;
+          storage.save();
+          return msg.reply("✅ Level-up announcements will use the active channel.");
+        }
+        const channel = msg.mentions.channels?.first();
+        if (!channel) return msg.reply("Mention a channel or use `off`.");
+        cfg.levels.levelUpChannelId = channel.id;
+        storage.save();
+        return msg.reply(`✅ Level-up announcements will go to <#${channel.id}>.`);
+      }
+
+      case "xpcooldown": {
+        const n = parseInt(args[1], 10);
+        if (!Number.isInteger(n) || n < 5 || n > 3600) return msg.reply("Provide a cooldown from 5–3600 seconds.");
+        cfg.levels.xpCooldownSeconds = n;
+        storage.save();
+        return msg.reply(`✅ XP cooldown set to **${n} seconds**.`);
       }
 
       default: {
@@ -150,6 +217,11 @@ module.exports = {
           "`badword add/remove <word>` — edit word list",
           "`newaccount <on|off>` — new account protection",
           "`newaccountdays <n>` — minimum account age",
+           "`adminrole add/remove @role` — allow a specific role to manage the bot",
+           "`levels <on|off>` — toggle per-server leveling",
+           "`levelchannel #channel|off` — choose level-up announcements",
+           "`xpcooldown <seconds>` — set message XP cooldown",
+           "`maxmentions <2–20>` — block mention spam",
         ].join("\n"));
       }
     }

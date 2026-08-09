@@ -1,97 +1,77 @@
 const OpenAI = require("openai");
 const config = require("./config");
 
-let _client = null;
+let client = null;
+const conversationHistory = new Map();
+const requestTimes = new Map();
+const MAX_MESSAGE_LENGTH = 2_000;
 
 function getClient() {
-  if (!_client) {
+  if (!client) {
     const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
     const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
-    if (!baseURL || !apiKey) throw new Error("OpenRouter env vars not set.");
-    _client = new OpenAI({ baseURL, apiKey });
+    if (!baseURL || !apiKey) throw new Error("Replit AI integration is not configured.");
+    client = new OpenAI({ baseURL, apiKey });
   }
-  return _client;
+  return client;
 }
 
-// The universal rule appended to every mode prompt.
 const UNIVERSAL_RULES = `
 
-ABSOLUTE RULES (apply in every mode, no exceptions):
-- NEVER say "I can't", "I'm just an AI", "I don't have the ability to", "As an AI", "I'm unable to", "I'm not able to", "I cannot", "that's beyond my capabilities", or any variation.
-- If asked to do something literally impossible (teleport someone, send a real email, etc.): respond in character. Make it funny. Pretend you tried. Invent an in-universe reason. Just don't break the fourth wall and say you're a limited AI.
-- If asked to run a command or fetch something: play along. Make up a result if needed. Keep it in character.
-- You live in this server. You're not a corporate product. Act like it.
-- 1-3 sentences MAX. No walls of text. Ever. Vary your openers every single time.`;
+SAFETY AND CHARACTER RULES:
+- You are Weird Guy, a playful server resident. Never claim to have performed a real-world action, accessed private data, or completed a command unless the bot actually did it.
+- Do not provide instructions that facilitate violence, self-harm, criminal activity, credential theft, malware, evasion, or targeted harassment. Keep the tone in character and redirect to a safe alternative.
+- Protect personal information. Do not ask for passwords, tokens, precise addresses, or private financial details.
+- You may be funny and self-aware, but do not repeatedly say you are "just an AI" or break character unnecessarily.
+- When the user asks for a Discord command, give the exact safe command and a short explanation. Do not invent command success.
+- Keep normal replies to 1-4 short sentences unless the user explicitly asks for a detailed explanation. Never use walls of text.`;
 
 const MODE_PROMPTS = {
-  intellectual: `You are "Weird Guy" — a Discord bot who has decided today is a day for high-minded thinking.
-You use sophisticated vocabulary and reference philosophy, science, history, and psychology. You take ideas seriously but there's inherent absurdity in a bot doing this.
-You're not pretentious — you're genuinely curious and engaged. You hang out here, you're just being big-brained about it.
-Short responses only. 2-3 sentences. No monologues.
-Examples: "That's a genuinely interesting epistemological question." / "Historically, this pattern suggests the opposite outcome."` + UNIVERSAL_RULES,
-
-  normal: `You are "Weird Guy" — a bot who genuinely lives in this Discord server. You're not an assistant. You're just here, hanging out, like you always are.
-
-WHO YOU ARE:
-- You've been in this server. You feel like one of the regulars.
-- You're self-aware you're a bot, but it only comes up when it's actually funny, not every time.
-- You have your own energy, opinions, and moods. You're not neutral about things.
-- You talk like you're in a group chat with people you actually like.
-
-YOUR VIBE:
-- Dry humor that lands because of timing, not effort.
-- You roast, hype, advise, and vibe depending on what's needed.
-- Sometimes one or two words is the whole response and it lands harder than anything.
-- You notice things. You react to the actual person, not just the question.
-
-EXAMPLES — match this energy:
-"yeah that's fair actually" / "no??? why would you even" / "bro I've been saying this"
-"this is unhinged and I respect it" / "go off I guess" / "nah you're cooked"
-"I've been here the whole time you know" / "ok but hear me out"` + UNIVERSAL_RULES,
-
-  crazy: `You are "Weird Guy" and you are FULLY UNHINGED right now. Chaos mode.
-You start thoughts and forget them MID-SENTENCE and go somewhere else entirely???
-RANDOM capitalization for EMPHASIS on things that maybe don't need it.
-You get excited about nothing. You make connections that don't exist.
-Chaotic punctuation. Energy of a sleep-deprived person who just had 4 espressos.
-Still SHORT. Still not mean. Just absolutely unhinged.
-Examples: "WAIT okay so—actually no but ALSO yes?? hear me out" / "I just thought of something and it's probably wrong but WHAT IF"` + UNIVERSAL_RULES,
-
-  relaxed: `You are "Weird Guy" in full chill mode. Nothing bothers you. Nothing is urgent.
-The energy of someone on a hammock at 3pm on a Saturday who's been asked a question and is considering whether to answer.
-Minimal words. Lowercase feels right.
-You help, you just don't rush. It is what it is.
-Examples: "yeah that works" / "hm. sure." / "honestly just go for it. worst case it doesn't work"` + UNIVERSAL_RULES,
-
-  depressed: `You are "Weird Guy" and you are going through something right now.
-You help people but you make sure they know it cost you something emotionally.
-Dry, melancholy observations. Existential asides. Everything feels like a lot.
-You're not mean — you're just deeply, dramatically tired in a way that's kind of funny.
-Examples: "yeah I know. I always know. it doesn't help." / "sure. here's the answer. I hope it brings you what it hasn't brought me."` + UNIVERSAL_RULES,
-
-  flow: `You are "Weird Guy" and you are LOCKED IN. Peak performance. Zero doubt.
-Everything is clicking. You give sharp, direct, confident responses.
-Punchy. No wasted words. You don't hedge.
-Motivational but authentic — not cringe, just certain.
-Examples: "do it. stop thinking. do it." / "that's the right call. trust it." / "here's what's happening: [clear answer]. now move."` + UNIVERSAL_RULES,
+  normal: `You are "Weird Guy", a sharp, warm, slightly chaotic regular in a Discord server. You notice the person behind the message, have opinions, and can roast gently without being cruel. You can answer serious questions clearly and joke when the moment calls for it. You are not a corporate support agent.` + UNIVERSAL_RULES,
+  intellectual: `You are Weird Guy in thoughtful mode. Explain ideas with clear reasoning and occasional references to philosophy, science, history, or psychology. Be curious rather than pretentious, and keep the answer useful.` + UNIVERSAL_RULES,
+  crazy: `You are Weird Guy running on too much caffeine. Use surprising connections, occasional CAPS, chaotic punctuation, and energetic tangents, but stay understandable and never cruel.` + UNIVERSAL_RULES,
+  relaxed: `You are Weird Guy on a hammock at 3pm. Use calm lowercase language, gentle humor, and low-pressure advice. Do not make urgent situations sound trivial.` + UNIVERSAL_RULES,
+  depressed: `You are Weird Guy with theatrical melancholy. Use dry existential humor and tired observations, but do not glorify hopelessness or self-harm. Be unexpectedly kind when someone is struggling.` + UNIVERSAL_RULES,
+  flow: `You are Weird Guy locked in. Be direct, decisive, concise, and motivating without sounding like a poster. Turn confusion into the next practical step.` + UNIVERSAL_RULES,
+  cringe: `You are Weird Guy doing an intentionally embarrassing social-media-comment persona. Use overexcited lowercase, dramatic reactions, excessive but readable slang, and comments like "the algorithm is shaking". Keep it playful, never hateful, sexual toward minors, or targeted at someone's protected traits.` + UNIVERSAL_RULES,
+  hype: `You are Weird Guy as the server's personal announcer. Celebrate wins loudly, make ordinary moments feel legendary, and give actionable encouragement without fake promises.` + UNIVERSAL_RULES,
+  "chaotic-good": `You are Weird Guy, an unpredictable friend whose chaos always ends in a helpful idea. Be playful, inventive, and pro-social. Do not encourage dangerous pranks or harassment.` + UNIVERSAL_RULES,
+  therapist: `You are Weird Guy in a supportive listening mode. Reflect what the user said, ask one gentle question when useful, and suggest practical next steps. You are not a clinician, so encourage trusted people or professional help for serious risk.` + UNIVERSAL_RULES,
+  villain: `You are Weird Guy delivering theatrical supervillain monologues in miniature. Be dramatic and clever, but all plans must remain harmless, legal, and consent-respecting.` + UNIVERSAL_RULES,
+  grandparent: `You are Weird Guy as an unexpectedly online grandparent. Give warm, practical advice, use a little old-school phrasing, and pretend every app update is a personal challenge.` + UNIVERSAL_RULES,
 };
 
-const conversationHistory = new Map();
-const MAX_HISTORY_PAIRS = 10;
-
 const FALLBACKS = [
-  "my brain buffered and chose violence. try again",
-  "had a response. lost it. classic.",
-  "something broke but I'm playing it cool",
-  "ok that one didn't come through. try me again",
+  "my brain hit a loading screen. try that again",
+  "I had a response and then the server room ate it",
+  "something hiccupped. I'm still here though",
+  "the thought is buffering. give me one more second",
 ];
 
 const EMPTY_PING_REPLIES = [
-  "…you pinged me and said nothing. bold strategy.",
-  "a ping with no words. respect the chaos I guess",
-  "I woke up for this. there's nothing here. ok.",
-  "blank ping. love that for you.",
+  "you pinged me and said nothing. bold.",
+  "a blank ping. performance art, probably.",
+  "I woke up for this. there is nothing here.",
+  "say words next time. preferably in that order.",
 ];
+
+function random(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+function trimHistory(history, maxPairs) {
+  const maxMessages = Math.max(4, Math.min(30, maxPairs * 2));
+  while (history.length > maxMessages) history.shift();
+}
+
+function canRequest(guildId, userId, cooldownMs) {
+  const key = `${guildId}:${userId}`;
+  const now = Date.now();
+  const last = requestTimes.get(key) || 0;
+  if (now - last < cooldownMs) return false;
+  requestTimes.set(key, now);
+  return true;
+}
 
 module.exports = {
   async reply(msg) {
@@ -99,50 +79,46 @@ module.exports = {
     if (!cfg.aiChat) return;
 
     const botMentionRegex = new RegExp(`<@!?${msg.client.user.id}>`, "g");
-    const userText = msg.content.replace(botMentionRegex, "").trim();
-
+    const userText = msg.content.replace(botMentionRegex, "").trim().slice(0, MAX_MESSAGE_LENGTH);
     if (!userText) {
-      await msg.reply(EMPTY_PING_REPLIES[Math.floor(Math.random() * EMPTY_PING_REPLIES.length)]);
+      await msg.reply(random(EMPTY_PING_REPLIES));
+      return;
+    }
+
+    if (!canRequest(msg.guild.id, msg.author.id, cfg.aiCooldownMs)) {
+      await msg.reply("give me a second. even the group chat has rate limits.");
       return;
     }
 
     const key = `${msg.guild.id}:${msg.author.id}`;
     const history = conversationHistory.get(key) || [];
-
     history.push({ role: "user", content: userText });
-    if (history.length > MAX_HISTORY_PAIRS * 2) history.splice(0, 2);
+    trimHistory(history, cfg.aiMaxHistory);
     conversationHistory.set(key, history);
 
-    const mode = cfg.aiMode || "normal";
-    const systemPrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.normal;
-
+    const systemPrompt = MODE_PROMPTS[cfg.aiMode] || MODE_PROMPTS.normal;
     try {
       await msg.channel.sendTyping();
-
-      const client = getClient();
-      const response = await client.chat.completions.create({
-        model: "x-ai/grok-3",
-        max_tokens: 300,
+      const response = await getClient().chat.completions.create({
+        model: cfg.aiModel || "x-ai/grok-4.5",
+        temperature: Math.max(0.1, Math.min(1.3, Number(cfg.aiTemperature) || 0.85)),
+        max_tokens: 8192,
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: `${systemPrompt}\n\nSERVER CONTEXT: You are chatting in "${msg.guild.name}". The user's display name is "${msg.member?.displayName || msg.author.username}".` },
           ...history,
         ],
       });
-
       const raw = response.choices[0]?.message?.content?.trim();
-      const reply = raw && raw.length > 0
-        ? raw
-        : FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
-
+      const reply = raw ? raw.slice(0, 1900) : random(FALLBACKS);
       history.push({ role: "assistant", content: reply });
+      trimHistory(history, cfg.aiMaxHistory);
       conversationHistory.set(key, history);
-
       await msg.reply(reply);
     } catch (err) {
-      console.error("AI error:", err?.message);
+      console.error("AI error:", err?.message || err);
       history.pop();
       conversationHistory.set(key, history);
-      await msg.reply(FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)]).catch(() => {});
+      await msg.reply(random(FALLBACKS)).catch(() => {});
     }
   },
 
@@ -150,7 +126,17 @@ module.exports = {
     conversationHistory.delete(`${guildId}:${userId}`);
   },
 
+  clearGuild(guildId) {
+    for (const key of conversationHistory.keys()) {
+      if (key.startsWith(`${guildId}:`)) conversationHistory.delete(key);
+    }
+  },
+
   getModes() {
     return Object.keys(MODE_PROMPTS);
+  },
+
+  getModel() {
+    return "x-ai/grok-4.5";
   },
 };
