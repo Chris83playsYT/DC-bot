@@ -186,16 +186,16 @@
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 391,
-        "messages": 26,
+        "xp": 485,
+        "messages": 32,
         "commands": 3,
-        "lastAwardAt": 1787313116368
+        "lastAwardAt": 1787313491020
       },
       "1332518492620197961": {
-        "xp": 297,
-        "messages": 21,
+        "xp": 471,
+        "messages": 33,
         "commands": 1,
-        "lastAwardAt": 1786135201766
+        "lastAwardAt": 1787313781680
       },
       "1508551350349205544": {
         "xp": 135,
@@ -238,6 +238,18 @@
         "messages": 1,
         "commands": 0,
         "lastAwardAt": 1786237404880
+      },
+      "1534232581262938235": {
+        "xp": 100,
+        "messages": 6,
+        "commands": 0,
+        "lastAwardAt": 1787313685073
+      },
+      "1539464842245578853": {
+        "xp": 37,
+        "messages": 2,
+        "commands": 0,
+        "lastAwardAt": 1787313446291
       }
     },
     "1389933784706580520": {
@@ -268,7 +280,8 @@
     "id": "1385955123225825402",
     "username": "chrisv_yes",
     "tag": "chrisv_yes",
-    "savedAt": "2026-08-09T01:02:22.315Z"
+    "savedAt": "2026-08-09T01:02:22.315Z",
+    "displayName": "WeirdGuy"
   },
   "ownerDelegates": {},
   "ownerControls": {
@@ -276,7 +289,7 @@
     "activity": {
       "mode": "custom",
       "type": "streaming",
-      "text": "pov on the owner updating me 👀👀"
+      "text": "new update available!"
     }
   }
 }

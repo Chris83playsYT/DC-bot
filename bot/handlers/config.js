@@ -46,6 +46,7 @@ const DEFAULT = () => ({
 });
 
 let botOwnerId = storage.state.ownerProfile?.id || null;
+const BOT_OWNER_NAME = "WeirdGuy";
 
 function mergeConfig(saved) {
   const base = DEFAULT();
@@ -74,6 +75,7 @@ module.exports = {
       id,
       username: profile.username || previous.username || null,
       tag: profile.tag || previous.tag || null,
+      displayName: profile.displayName || previous.displayName || BOT_OWNER_NAME,
       savedAt: previous.savedAt || new Date().toISOString(),
     };
     storage.save();
@@ -81,6 +83,7 @@ module.exports = {
   isOwner(userId) { return Boolean(botOwnerId && userId === botOwnerId); },
   getOwnerId() { return botOwnerId; },
   getOwnerProfile() { return storage.state.ownerProfile; },
+  getOwnerName() { return BOT_OWNER_NAME; },
 
   get(guildId) {
     const configs = storage.state.configs;

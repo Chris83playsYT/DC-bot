@@ -74,6 +74,65 @@ async function execute(msg, args) {
       break;
     }
 
+    case "health": {
+      const ping = msg.client.ws.ping;
+      const memory = Math.round(process.memoryUsage().rss / 1024 / 1024);
+      await msg.reply([
+        "╭━━━ 🩺 **WEIRD GUY HEALTH** ━━━╮",
+        "┃ Status: **online**",
+        `┃ Owner identity: **${config.getOwnerName()}**`,
+        `┃ Discord latency: **${ping < 0 ? "measuring…" : `${ping}ms`}**`,
+        `┃ Uptime: **${formatUptime(process.uptime())}**`,
+        `┃ Memory RSS: **${memory} MB**`,
+        "╰━━━━━━━━━━━━━━━━━━━━━━━━━━━━╯",
+      ].join("\n"));
+      break;
+    }
+
+    case "server":
+    case "serverinfo": {
+      const guild = msg.guild;
+      if (!guild) return msg.reply("Run this command inside a server.");
+      await msg.reply([
+        `✨ **${guild.name}**`,
+        `Owner: <@${guild.ownerId}>`,
+        `Members: **${guild.memberCount.toLocaleString()}** · Channels: **${guild.channels.cache.size}** · Roles: **${guild.roles.cache.size}**`,
+        `Created: <t:${Math.floor(guild.createdTimestamp / 1000)}:D>`,
+        "Server settings remain isolated to this server.",
+      ].join("\n"));
+      break;
+    }
+
+    case "say": {
+      const text = args.slice(1).join(" ").trim();
+      if (!text) return msg.reply("Usage: `,wgowner say [message]`");
+      if (text.length > 1_900) return msg.reply("Keep the message under 1,900 characters.");
+      await msg.delete().catch(() => {});
+      await msg.channel.send(`✨ ${text}`);
+      break;
+    }
+
+    case "announce": {
+      const text = args.slice(1).join(" ").trim();
+      if (!text) return msg.reply("Usage: `,wgowner announce [message]`");
+      if (text.length > 1_800) return msg.reply("Keep the announcement under 1,800 characters.");
+      const embed = new EmbedBuilder()
+        .setColor("#f5b942")
+        .setTitle("📣 Weird Guy Owner Announcement")
+        .setDescription(text)
+        .setFooter({ text: "Published by WeirdGuy" })
+        .setTimestamp();
+      await msg.channel.send({ embeds: [embed] });
+      await msg.reply("✅ Announcement posted in this server.");
+      break;
+    }
+
+    case "ownername":
+    case "whoami": {
+      await msg.reply(`👑 I am **Weird Guy**, and my owner is **${config.getOwnerName()}**. The real owner is verified by Discord ownership plus the private password gate.`);
+      break;
+    }
+
     case "status":
     case "presence": {
       const action = args[1]?.toLowerCase();
@@ -119,7 +178,7 @@ async function execute(msg, args) {
       await msg.reply([
         "**👑 Remembered Bot Owner**",
         `ID: \`${profile?.id || config.getOwnerId() || "not discovered yet"}\``,
-        `Name: **${profile?.tag || profile?.username || msg.author.tag}**`,
+        `Name: **${profile?.displayName || profile?.tag || profile?.username || msg.author.tag}**`,
         `First remembered: ${profile?.savedAt || "this session"}`,
         "Owner permissions are global and password-gated. Server admins cannot use these controls.",
       ].join("\n"));
@@ -328,6 +387,11 @@ async function execute(msg, args) {
       await msg.reply([
         "**👑 Owner Commands** — `,wgowner [sub]`",
         "`overview` — professional control center",
+        "`health` — live latency, uptime, memory, and identity",
+        "`server` — inspect the current server",
+        "`say [message]` — owner voice message without the command",
+        "`announce [message]` — luxury announcement embed",
+        "`whoami` — confirm Weird Guy's owner identity",
         "`stats` — bot stats and uptime",
         "`status [type] [text]` — set the global bot presence; `status rotate` resets it",
         "`directive [text|clear]` — set a global AI instruction",

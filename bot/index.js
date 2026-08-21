@@ -41,6 +41,7 @@ client.on("clientReady", async () => {
       config.setOwner(ownerId, {
         username: ownerObj.user?.username || ownerObj.username,
         tag: ownerObj.user?.tag || ownerObj.tag,
+        displayName: "WeirdGuy",
       });
       console.log(`Bot owner set: ${ownerId}`);
     }

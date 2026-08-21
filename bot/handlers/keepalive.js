@@ -1,9 +1,8 @@
 // Lightweight HTTP keep-alive server.
-// Point UptimeRobot (or any uptime monitor) at this URL to keep the bot alive on free tier.
-// For true 24/7 uptime, use a Reserved VM deployment instead.
+// Render and Replit both expect a web process to bind to PORT when one is set.
 const http = require("http");
 
-const PORT = process.env.KEEPALIVE_PORT || 4000;
+const PORT = Number(process.env.PORT || process.env.KEEPALIVE_PORT || 4000);
 
 module.exports = {
   start() {
