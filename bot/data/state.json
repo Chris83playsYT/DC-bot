@@ -40,11 +40,12 @@
         }
       ],
       "aiChat": true,
-      "aiMode": "normal",
-      "aiModel": "x-ai/grok-4.5",
+      "aiMode": "npc",
+      "aiModel": "google/gemini-2.5-flash",
       "aiTemperature": 0.85,
       "aiMaxHistory": 12,
       "aiCooldownMs": 2500,
+      "responseLength": "paragraph",
       "adminRoleIds": [],
       "logChannelId": null,
       "raidMode": false,
@@ -98,10 +99,11 @@
       ],
       "aiChat": true,
       "aiMode": "normal",
-      "aiModel": "x-ai/grok-4.5",
+      "aiModel": "google/gemini-2.5-flash",
       "aiTemperature": 0.85,
       "aiMaxHistory": 12,
       "aiCooldownMs": 2500,
+      "responseLength": "normal",
       "adminRoleIds": [],
       "logChannelId": null,
       "raidMode": false,
@@ -155,7 +157,7 @@
       ],
       "aiChat": true,
       "aiMode": "crazy",
-      "aiModel": "x-ai/grok-4.5",
+      "aiModel": "google/gemini-2.5-flash",
       "aiTemperature": 0.85,
       "aiMaxHistory": 12,
       "aiCooldownMs": 2500,
@@ -176,18 +178,18 @@
   "levels": {
     "1503421306643808518": {
       "1385955123225825402": {
-        "xp": 65,
-        "messages": 3,
-        "commands": 4,
-        "lastAwardAt": 1786129989342
+        "xp": 237,
+        "messages": 12,
+        "commands": 10,
+        "lastAwardAt": 1786238084942
       }
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 361,
-        "messages": 24,
+        "xp": 374,
+        "messages": 25,
         "commands": 3,
-        "lastAwardAt": 1786134271029
+        "lastAwardAt": 1786237820383
       },
       "1332518492620197961": {
         "xp": 297,
@@ -230,6 +232,12 @@
         "messages": 4,
         "commands": 0,
         "lastAwardAt": 1786132183292
+      },
+      "235925970953961473": {
+        "xp": 12,
+        "messages": 1,
+        "commands": 0,
+        "lastAwardAt": 1786237404880
       }
     },
     "1389933784706580520": {
@@ -255,5 +263,20 @@
   },
   "premiumUsers": [],
   "warnings": {},
-  "modNotes": {}
+  "modNotes": {},
+  "ownerProfile": {
+    "id": "1385955123225825402",
+    "username": "chrisv_yes",
+    "tag": "chrisv_yes",
+    "savedAt": "2026-08-09T01:02:22.315Z"
+  },
+  "ownerDelegates": {},
+  "ownerControls": {
+    "directive": "",
+    "activity": {
+      "mode": "custom",
+      "type": "streaming",
+      "text": "pov on the owner updating me 👀👀"
+    }
+  }
 }

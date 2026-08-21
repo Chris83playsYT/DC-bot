@@ -1,1 +1,2 @@
 - [Bot lifecycle](bot-lifecycle.md) — the Discord bot must not auto-restart after it exits; recovery is an explicit manual workflow start.
+- [Control boundaries](control-boundaries.md) — server settings stay guild-scoped; owner status, directives, and global controls stay password-gated.

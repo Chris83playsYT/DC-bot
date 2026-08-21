@@ -5,6 +5,8 @@ const premium = require("../handlers/premium");
 // Password must be stored as a Replit Secret. Never keep an owner credential in source.
 const storage = require("../handlers/storage");
 const ai = require("../handlers/ai");
+const presence = require("../handlers/presence");
+const ownerAccess = require("../handlers/owner-access");
 const OWNER_PASSWORD = process.env.OWNER_PASSWORD || "";
 
 // Session cache — once verified, no re-entry needed for 5 minutes.
@@ -61,10 +63,79 @@ async function execute(msg, args) {
         `Servers connected: **${guilds.size}**`,
         `Servers with saved settings: **${configured}**`,
         `Premium users: **${premium.count()}**`,
+        `Temporary delegates: **${ownerAccess.list().length}**`,
         `AI model: \`${ai.getModel()}\``,
+        `Remembered owner: ${config.getOwnerProfile()?.tag || config.getOwnerProfile()?.username || "pending Discord owner lookup"}`,
+        `Global directive: ${storage.state.ownerControls.directive ? "set" : "not set"}`,
+        `Presence: ${presence.describe()}`,
         `State file: \`${storage.file}\``,
-        "Use `stats`, `guilds`, `config <server-id>`, `clearai <server-id>`, or `reset` for control actions.",
+        "Use `status`, `directive`, `ownerinfo`, `chaos`, `stats`, `guilds`, `config <server-id>`, `clearai <server-id>`, or `reset` for control actions.",
       ].join("\n"));
+      break;
+    }
+
+    case "status":
+    case "presence": {
+      const action = args[1]?.toLowerCase();
+      if (!action || action === "show") {
+        return msg.reply([
+          `**Current presence:** ${presence.describe()}`,
+          `Use \`,wgowner status <playing|streaming|listening|watching|competing> <text>\``,
+          "Use `,wgowner status rotate` to restore rotating activities.",
+        ].join("\n"));
+      }
+      if (action === "rotate" || action === "reset") {
+        presence.reset(msg.client);
+        return msg.reply("✅ Status rotation restored.");
+      }
+      const text = args.slice(2).join(" ").trim();
+      if (!text) return msg.reply("Give the status text too.");
+      if (text.length > 128) return msg.reply("Discord status text must be 128 characters or fewer.");
+      if (!presence.setCustom(msg.client, action, text)) {
+        return msg.reply(`Choose a type: ${presence.activityTypes.map(type => `\`${type}\``).join(", ")}`);
+      }
+      await msg.reply(`✅ Global bot status set to **${action} ${text}**.`);
+      break;
+    }
+
+    case "directive":
+    case "personality": {
+      const directive = args.slice(1).join(" ").trim();
+      if (!directive || ["clear", "reset", "off"].includes(directive.toLowerCase())) {
+        storage.state.ownerControls.directive = "";
+        storage.save();
+        return msg.reply("✅ Global owner directive cleared. Server personalities still control their own AI tone.");
+      }
+      if (directive.length > 500) return msg.reply("Keep the global directive under 500 characters.");
+      storage.state.ownerControls.directive = directive;
+      storage.save();
+      await msg.reply(`✅ Global AI directive saved:\n> ${directive}`);
+      break;
+    }
+
+    case "ownerinfo":
+    case "ownerprofile": {
+      const profile = config.getOwnerProfile();
+      await msg.reply([
+        "**👑 Remembered Bot Owner**",
+        `ID: \`${profile?.id || config.getOwnerId() || "not discovered yet"}\``,
+        `Name: **${profile?.tag || profile?.username || msg.author.tag}**`,
+        `First remembered: ${profile?.savedAt || "this session"}`,
+        "Owner permissions are global and password-gated. Server admins cannot use these controls.",
+      ].join("\n"));
+      break;
+    }
+
+    case "chaos": {
+      const chaos = [
+        "The owner has pressed the suspicious red button. Nothing is on fire. Yet.",
+        "👑 Owner broadcast: everyone remain calm while Weird Guy rearranges the vibes.",
+        "A totally authorized anomaly has entered the server. Please act natural.",
+        "The bot has received premium instructions from upstairs and is choosing drama.",
+        "GLOBAL OWNER EVENT: this message was personally approved by the person with the keys.",
+      ];
+      await msg.channel.send(`✨ ${chaos[Math.floor(Math.random() * chaos.length)]}`);
+      await msg.reply("✅ Owner chaos event triggered in this server only.");
       break;
     }
 
@@ -83,7 +154,12 @@ async function execute(msg, args) {
     }
 
     case "config": {
-      const guildId = args[1] || msg.guild?.id;
+      const delegated = !config.isOwner(msg.author.id);
+      const requestedGuildId = args[1] || msg.guild?.id;
+      if (delegated && requestedGuildId !== msg.guild?.id) {
+        return msg.reply("🔒 Temporary owner access can inspect only the server where you are using the command.");
+      }
+      const guildId = requestedGuildId;
       const guild = msg.client.guilds.cache.get(guildId);
       if (!guild) return msg.reply("I can't find that server in my current connection.");
       await msg.reply(`**${guild.name}** (` + guild.id + `)\n` + config.format(guild.id));
@@ -91,11 +167,75 @@ async function execute(msg, args) {
     }
 
     case "clearai": {
-      const guildId = args[1] || msg.guild?.id;
+      const delegated = !config.isOwner(msg.author.id);
+      const requestedGuildId = args[1] || msg.guild?.id;
+      if (delegated && requestedGuildId !== msg.guild?.id) {
+        return msg.reply("🔒 Temporary owner access can clear AI history only in the current server.");
+      }
+      const guildId = requestedGuildId;
       if (!guildId) return msg.reply("Provide a server ID.");
       ai.clearGuild(guildId);
       await msg.reply(`✅ Cleared in-memory AI conversations for server \`${guildId}\`.`);
       break;
+    }
+
+    case "delegate": {
+      const action = args[1]?.toLowerCase();
+      const target = msg.mentions.users?.first();
+
+      if (action === "list") {
+        const grants = ownerAccess.list();
+        if (!grants.length) return msg.reply("No temporary owner delegates are active.");
+        return msg.reply([
+          "**🪪 Temporary Owner Delegates**",
+          ...grants.map(grant => {
+            const remaining = ownerAccess.formatDuration(grant.expiresAt - Date.now());
+            return `<@${grant.userId}> — **${remaining}** left — ${grant.scopes.map(scope => `\`${scope}\``).join(", ")}`;
+          }),
+        ].join("\n"));
+      }
+
+      if (!target) {
+        return msg.reply([
+          "Usage:",
+          "`,wgowner delegate add @user 2h status chaos`",
+          "`,wgowner delegate remove @user`",
+          "`,wgowner delegate list`",
+          `Scopes: ${ownerAccess.GRANTABLE_SCOPES.map(scope => `\`${scope}\``).join(", ")}`,
+        ].join("\n"));
+      }
+
+      if (action === "remove" || action === "revoke") {
+        const removed = ownerAccess.revoke(target.id);
+        return msg.reply(removed
+          ? `✅ Temporary owner access revoked from **${target.tag}**.`
+          : `ℹ️ **${target.tag}** did not have temporary owner access.`);
+      }
+
+      if (action !== "add" && action !== "grant") {
+        return msg.reply("Choose `add`, `remove`, or `list`.");
+      }
+
+      const mentionIndex = args.findIndex(value =>
+        value === `<@${target.id}>` || value === `<@!${target.id}>`
+      );
+      const duration = ownerAccess.parseDuration(args[mentionIndex + 1]);
+      if (!duration) return msg.reply("Choose a duration from `1m` to `30d`, such as `2h` or `7d`.");
+      const scopes = args.slice(mentionIndex + 2);
+      const result = ownerAccess.grant(
+        target.id,
+        duration,
+        scopes,
+        msg.author.id,
+        { username: target.username, tag: target.tag },
+      );
+      if (!result.ok) return msg.reply(result.reason);
+      return msg.reply([
+        `✅ **${target.tag}** received temporary owner access.`,
+        `Expires in **${ownerAccess.formatDuration(duration)}**.`,
+        `Granted scopes: ${result.grant.scopes.map(scope => `\`${scope}\``).join(", ")}`,
+        "They still cannot grant access, manage premium, broadcast, DM users, or stop the bot.",
+      ].join("\n"));
     }
 
     case "broadcast": {
@@ -189,6 +329,11 @@ async function execute(msg, args) {
         "**👑 Owner Commands** — `,wgowner [sub]`",
         "`overview` — professional control center",
         "`stats` — bot stats and uptime",
+        "`status [type] [text]` — set the global bot presence; `status rotate` resets it",
+        "`directive [text|clear]` — set a global AI instruction",
+        "`ownerinfo` — show the remembered owner profile",
+        "`chaos` — trigger an owner-only event in the current server",
+        "`delegate add/remove/list` — grant selected owner features temporarily",
         "`guilds` — list all servers",
         "`broadcast [message]` — message all servers",
         "`invite` — bot invite link",
@@ -204,9 +349,20 @@ async function execute(msg, args) {
 
 module.exports = {
   async handle(msg, args) {
-    // Step 1 — Must be the registered bot owner by ID
+    const requestedScope = ({
+      presence: "status",
+      personality: "directive",
+      ownerprofile: "ownerinfo",
+    })[args[0]?.toLowerCase()] || args[0]?.toLowerCase();
+
+    // The real owner always uses the password gate. A delegate can only use
+    // an explicitly granted, low-risk scope and can never grant more access.
     if (!config.isOwner(msg.author.id)) {
-      await msg.reply("🔒 Owner-only command.");
+      if (!ownerAccess.hasScope(msg.author.id, requestedScope)) {
+        await msg.reply("🔒 Owner-only command. You do not have a temporary grant for this feature.");
+        return true;
+      }
+      await execute(msg, args);
       return true;
     }
 

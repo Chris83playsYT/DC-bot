@@ -9,12 +9,22 @@ let writeTimer = null;
 
 function defaultState() {
   return {
-    version: 1,
+    version: 3,
     configs: {},
     levels: {},
     premiumUsers: [],
     warnings: {},
     modNotes: {},
+    ownerProfile: null,
+    ownerDelegates: {},
+    ownerControls: {
+      directive: "",
+      activity: {
+        mode: "rotate",
+        type: null,
+        text: null,
+      },
+    },
   };
 }
 
@@ -34,6 +44,18 @@ function ensureLoaded() {
     premiumUsers: Array.isArray(state.premiumUsers) ? state.premiumUsers : [],
     warnings: state.warnings && typeof state.warnings === "object" ? state.warnings : {},
     modNotes: state.modNotes && typeof state.modNotes === "object" ? state.modNotes : {},
+    ownerProfile: state.ownerProfile && typeof state.ownerProfile === "object" ? state.ownerProfile : null,
+    ownerDelegates: state.ownerDelegates && typeof state.ownerDelegates === "object" ? state.ownerDelegates : {},
+    ownerControls: {
+      ...defaultState().ownerControls,
+      ...(state.ownerControls && typeof state.ownerControls === "object" ? state.ownerControls : {}),
+      activity: {
+        ...defaultState().ownerControls.activity,
+        ...(state.ownerControls?.activity && typeof state.ownerControls.activity === "object"
+          ? state.ownerControls.activity
+          : {}),
+      },
+    },
   };
   return state;
 }

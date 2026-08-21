@@ -49,6 +49,17 @@ module.exports = {
         break;
       }
 
+      case "response":
+      case "responselength":
+      case "length": {
+        const length = args[1]?.toLowerCase();
+        if (!length) return msg.reply(`Use one of: ${config.RESPONSE_LENGTHS.map(value => `\`${value}\``).join(", ")}.`);
+        if (!config.setResponseLength(msg.guild.id, length)) {
+          return msg.reply(`Choose \`short\`, \`normal\`, or \`paragraph\`.`);
+        }
+        return msg.reply(`✅ AI response length for **${msg.guild.name}** is now **${length}**.`);
+      }
+
       case "logchannel": {
         const val = args[1]?.toLowerCase();
         if (val === "off" || val === "none") {
@@ -208,6 +219,7 @@ module.exports = {
           "`prefix <char>` — change command prefix",
           "`aichat <on|off>` — toggle AI on mention",
           "`aimode <mode>` — change AI personality mode",
+           "`response <short|normal|paragraph>` — choose AI reply length for this server",
           "`logchannel #channel` or `off` — set mod log channel",
           "`automod <on|off>` — toggle all auto-mod",
           "`invites <on|off>` — toggle invite blocking",

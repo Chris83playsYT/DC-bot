@@ -52,6 +52,8 @@ const ADMIN_COMMANDS = [
   "warn","warnings","clearwarns","clear","purge","slowmode",
   "lock","unlock","lockall","unlockall","nuke","dehoist",
   "role","modnote","notes","raidmode","setprefix","aiclear",
+  "announce","nick","memberinfo","channelinfo",
+  "serverstats","roleinfo","unwarn","topic",
 ];
 
 module.exports = {
@@ -89,6 +91,125 @@ module.exports = {
         require("../handlers/ai").clearHistory(msg.guild.id, target.id);
         msg.reply(`✅ Cleared AI history for **${target.displayName}**.`);
         break;
+      }
+
+      case "announce": {
+        const channel = msg.mentions.channels?.first();
+        const channelIndex = channel ? args.indexOf(`<#${channel.id}>`) : -1;
+        const announcement = channelIndex >= 0 ? args.slice(channelIndex + 1).join(" ") : "";
+        if (!channel || !announcement) {
+          return msg.reply(`Usage: \`${prefix}announce #channel [message]\``);
+        }
+        if (!channel.isTextBased()) return msg.reply("That is not a text channel.");
+        const sent = await channel.send(`📢 **${msg.guild.name} Announcement**\n${announcement}`);
+        await msg.reply(`✅ Announcement sent to <#${channel.id}>.`);
+        await logger.logAction(msg.guild, { type: "announce", moderator: msg.author, extra: `#${channel.name}: ${announcement.slice(0, 500)}` });
+        return sent;
+      }
+
+      case "nick":
+      case "nickname": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`Usage: \`${prefix}nick @user [new nickname]\` or \`${prefix}nick @user reset\``);
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't change the nickname of yourself, the bot, or a protected administrator/owner.");
+        if (!target.manageable) return msg.reply("I can't manage that member — they may outrank my role.");
+        const mention = `<@!?${target.id}>`;
+        const mentionIndex = args.findIndex(value => value === mention || value === `<@${target.id}>` || value === `<@!${target.id}>`);
+        const nickname = args.slice(Math.max(1, mentionIndex + 1)).join(" ");
+        if (!nickname) return msg.reply("Provide a nickname or `reset`.");
+        const next = nickname.toLowerCase() === "reset" ? null : nickname.slice(0, 32);
+        await target.setNickname(next, `Changed by ${msg.author.tag}`);
+        msg.reply(next ? `✅ Nickname set for **${target.displayName}**.` : `✅ Nickname reset for **${target.user.tag}**.`);
+        await logger.logAction(msg.guild, { type: "nickname", moderator: msg.author, target: target.user, extra: next || "reset" });
+        break;
+      }
+
+      case "memberinfo": {
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`Usage: \`${prefix}memberinfo @user\``);
+        const roles = target.roles.cache
+          .filter(role => role.id !== msg.guild.id)
+          .sort((a, b) => b.position - a.position)
+          .map(role => role.name)
+          .slice(0, 15);
+        return msg.reply([
+          `**🔎 Member Info: ${target.user.tag}**`,
+          `ID: \`${target.id}\``,
+          `Joined: ${target.joinedAt ? `<t:${Math.floor(target.joinedAt.getTime() / 1000)}:R>` : "unknown"}`,
+          `Created: <t:${Math.floor(target.user.createdTimestamp / 1000)}:R>`,
+          `Timed out: ${target.communicationDisabledUntilTimestamp ? `<t:${Math.floor(target.communicationDisabledUntilTimestamp / 1000)}:R>` : "no"}`,
+          `Roles: ${roles.length ? roles.map(role => `\`${role}\``).join(", ") : "none"}`,
+        ].join("\n"));
+      }
+
+      case "channelinfo": {
+        const channel = msg.mentions.channels?.first() || msg.channel;
+        return msg.reply([
+          `**📌 Channel Info: #${channel.name}**`,
+          `ID: \`${channel.id}\``,
+          `Type: \`${channel.type}\``,
+          `Position: **${channel.position ?? "n/a"}**`,
+          `Slowmode: **${channel.rateLimitPerUser || 0}s**`,
+          `Topic: ${channel.topic || "none"}`,
+        ].join("\n"));
+      }
+
+      case "serverstats": {
+        const members = await msg.guild.members.fetch().catch(() => msg.guild.members.cache);
+        const humans = members.filter(member => !member.user.bot).size;
+        const bots = members.filter(member => member.user.bot).size;
+        const text = msg.guild.channels.cache.filter(channel => channel.type === ChannelType.GuildText).size;
+        const voice = msg.guild.channels.cache.filter(channel => channel.type === ChannelType.GuildVoice).size;
+        return msg.reply([
+          `**📊 Server Stats: ${msg.guild.name}**`,
+          `Members: **${members.size.toLocaleString()}** (${humans.toLocaleString()} humans · ${bots.toLocaleString()} bots)`,
+          `Channels: **${msg.guild.channels.cache.size}** (${text} text · ${voice} voice)`,
+          `Roles: **${Math.max(0, msg.guild.roles.cache.size - 1)}**`,
+          `Boosts: **${msg.guild.premiumSubscriptionCount || 0}**`,
+          `Created: <t:${Math.floor(msg.guild.createdTimestamp / 1000)}:D>`,
+        ].join("\n"));
+      }
+
+      case "roleinfo": {
+        const role = msg.mentions.roles?.first();
+        if (!role) return msg.reply(`Usage: \`${prefix}roleinfo @role\``);
+        const members = role.members?.size ?? msg.guild.members.cache.filter(member => member.roles.cache.has(role.id)).size;
+        return msg.reply([
+          `**🏷️ Role Info: ${role.name}**`,
+          `ID: \`${role.id}\``,
+          `Members: **${members}**`,
+          `Position: **${role.position}**`,
+          `Color: **${role.hexColor}**`,
+          `Managed by integration: **${role.managed ? "yes" : "no"}**`,
+          `Mentionable: **${role.mentionable ? "yes" : "no"}**`,
+        ].join("\n"));
+      }
+
+      case "unwarn": {
+        const target = msg.mentions.members?.first();
+        const number = parseInt(args[1], 10);
+        if (!target || !Number.isInteger(number) || number < 1) {
+          return msg.reply(`Usage: \`${prefix}unwarn @user [warning-number]\``);
+        }
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't edit warnings for yourself, the bot, or a protected administrator/owner.");
+        const key = `${msg.guild.id}:${target.id}`;
+        const list = getWarnings(msg.guild.id, target.id);
+        if (number > list.length) return msg.reply(`That user has only **${list.length}** warning(s).`);
+        const [removed] = list.splice(number - 1, 1);
+        if (list.length) storage.state.warnings[key] = list;
+        else delete storage.state.warnings[key];
+        storage.save();
+        await msg.reply(`✅ Removed warning **#${number}** from **${target.displayName}**: ${removed.reason}`);
+        await logger.logAction(msg.guild, { type: "unwarn", moderator: msg.author, target: target.user, reason: removed.reason });
+        break;
+      }
+
+      case "topic": {
+        const value = args.join(" ");
+        if (!value) return msg.reply(`Usage: \`${prefix}topic [new topic]\` or \`${prefix}topic clear\``);
+        const topic = value.toLowerCase() === "clear" ? null : value.slice(0, 1024);
+        await msg.channel.setTopic(topic, `Changed by ${msg.author.tag}`);
+        return msg.reply(topic ? "✅ Channel topic updated." : "✅ Channel topic cleared.");
       }
 
       case "kick": {
@@ -159,6 +280,7 @@ module.exports = {
       case "unmute": {
         const target = msg.mentions.members?.first();
         if (!target) return msg.reply("Mention a member to unmute.");
+        if (security.isProtectedTarget(msg, target)) return msg.reply("🛡️ I won't change the timeout of yourself, the bot, or a protected administrator/owner.");
         await target.timeout(null);
         msg.channel.send(`🔊 **${target.displayName}** unmuted.`);
         await logger.logAction(msg.guild, { type: "unmute", moderator: msg.author, target: target.user });

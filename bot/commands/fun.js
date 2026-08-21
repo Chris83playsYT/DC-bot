@@ -221,6 +221,12 @@ function shipBar(score) {
 
 function ppSize(userId) { return deterministicN(userId, 12, "pp"); }
 
+function premiumOnly(msg) {
+  if (premium.has(msg.author.id) || config.isOwner(msg.author.id)) return true;
+  msg.reply("💎 That is a VIP command. Ask the bot owner to grant you premium.").catch(() => {});
+  return false;
+}
+
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -258,6 +264,28 @@ module.exports = {
       }
 
       case "joke": msg.reply(rand(jokes)); break;
+
+      case "mood": {
+        const moods = [
+          ["😌", "suspiciously calm", 82],
+          ["🤨", "questioning everything", 58],
+          ["🔥", "operating at unsafe levels of confidence", 94],
+          ["🫠", "technically present", 31],
+          ["✨", "weirdly optimistic", 76],
+          ["🧃", "powered by a juice box and determination", 67],
+        ];
+        const [emoji, mood, score] = rand(moods);
+        msg.reply(`${emoji} **Current Weird Guy mood:** ${mood}\nVibe stability: **${score}%** ${"▰".repeat(Math.floor(score / 10))}${"▱".repeat(10 - Math.floor(score / 10))}`);
+        break;
+      }
+
+      case "vibecheck": {
+        const target = msg.mentions.members?.first() || msg.member;
+        const score = deterministicPercent(target.id, "vibe");
+        const label = score >= 90 ? "legendary" : score >= 70 ? "immaculate" : score >= 45 ? "acceptable with evidence" : "under active investigation";
+        msg.reply(`🔍 **Vibe Check:** ${target.displayName}\n${shipBar(score)} **${score}%** — ${label}.`);
+        break;
+      }
 
       case "roast": {
         const target = msg.mentions.members?.first();
@@ -556,9 +584,7 @@ module.exports = {
       }
 
       case "story": {
-        if (!premium.has(msg.author.id) && !config.isOwner(msg.author.id)) {
-          return msg.reply("💎 `story` is a **premium command**.");
-        }
+        if (!premiumOnly(msg)) return;
         const topic = args.join(" ") || "a bot with feelings";
         const stories = [
           `Once there was ${topic}. Nobody expected much. Turns out, that was the whole point.`,
@@ -567,6 +593,65 @@ module.exports = {
           `Nobody talked about ${topic} until it was too late to ignore. Classic.`,
         ];
         msg.reply(`📖 **A Story About ${topic}:**\n${rand(stories)}`);
+        break;
+      }
+
+      case "oracle": {
+        if (!premiumOnly(msg)) return;
+        const prophecies = [
+          "The next message you send will change the vibe. Please use this power responsibly.",
+          "A suspiciously convenient opportunity is approaching. It may be snacks.",
+          "You will soon find exactly what you were looking for, after checking the same place twice.",
+          "The prophecy says: take the small step. The dramatic soundtrack is optional.",
+          "Your aura currently says 'one more episode.' The oracle does not judge. Much.",
+        ];
+        msg.reply(`🔮 **VIP Oracle:** ${rand(prophecies)}`);
+        break;
+      }
+
+      case "heist": {
+        if (!premiumOnly(msg)) return;
+        const target = msg.mentions.members?.first();
+        const partner = target ? target.displayName : "the nearest suspicious-looking teammate";
+        const plans = [
+          `Operation Snack Drawer is a go. You distract the server; ${partner} handles the imaginary getaway.`,
+          `The plan is flawless: borrow the moon, replace it with a lamp, and deny everything.`,
+          `You and ${partner} have been assigned a harmless mission: steal the spotlight, then return it politely.`,
+          `The heist failed before it started because someone brought a spreadsheet. It was you.`,
+        ];
+        msg.reply(`🕶️ **VIP Heist Generator**\n${rand(plans)}`);
+        break;
+      }
+
+      case "daily": {
+        if (!premiumOnly(msg)) return;
+        const challenges = [
+          "compliment someone without adding a joke afterward",
+          "make the next message in this server unnecessarily poetic",
+          "drink water before sending another message",
+          "turn a bad idea into a harmless good idea",
+          "use an emoji you usually ignore",
+          "tell someone here one specific thing they do well",
+        ];
+        msg.reply(`💎 **VIP Daily Challenge**\n${rand(challenges)}.`);
+        break;
+      }
+
+      case "compat":
+      case "chemistry": {
+        if (!premiumOnly(msg)) return;
+        const target = msg.mentions.members?.first();
+        if (!target) return msg.reply(`Mention someone. e.g. \`${p}compat @user\``);
+        const score = shipScore(msg.author.id, target.id);
+        const comment = score >= 85 ? "dangerously synchronized" : score >= 65 ? "the server council approves" : score >= 40 ? "interesting chemistry" : "the paperwork is complicated";
+        msg.reply(`🧪 **VIP Chemistry Scan**\n${msg.member.displayName} + ${target.displayName}\n${shipBar(score)} **${score}%** — ${comment}`);
+        break;
+      }
+
+      case "vipstats": {
+        if (!premiumOnly(msg)) return;
+        const profile = levels.profile(msg.guild.id, msg.author.id);
+        msg.reply(`💎 **VIP Stats for ${msg.member.displayName}**\nLevel **${profile.level}** · **${profile.xp.toLocaleString()} XP**\nMessages: **${profile.messages.toLocaleString()}** · Commands: **${profile.commands.toLocaleString()}**\nYour VIP aura is currently: **${rand(["legendary", "suspiciously powerful", "under review", "sparkly", "unreasonably confident"])}**`);
         break;
       }
 
@@ -667,32 +752,45 @@ module.exports = {
 
       case "help":
         msg.reply([
-          `**🎮 Fun Commands** \`${p}[command]\``,
-          `\`weirdguy\` \`8ball\` \`coinflip\` \`roll\` \`joke\` \`roast\` \`compliment\` \`rps\``,
-          `\`poll\` \`choose\` \`ship\` \`rate\` \`fight\` \`roulette\` \`trivia\``,
-          `\`truth\` \`dare\` \`wyr\` \`highfive\` \`hug\` \`slap\``,
-          `\`mock\` \`reverse\` \`clap\` \`uwu\` \`emojify\` \`encode\` \`decode\` \`calc\``,
-          `\`pp\` \`howgay\` \`iq\` \`rizz\` \`vibe\``,
-          `\`rank\` / \`level\` — view XP and rank · \`leaderboard\` — top 10 in this server`,
-          `\`avatar\` \`userinfo\` \`serverinfo\` \`invite\``,
+          `╭━━━ 🎮 **WEIRD GUY ARCADE** ━━━╮`,
+          `┃ 🎲 **Quick Play**`,
+          `┃ \`${p}weirdguy\` \`${p}8ball [question]\` \`${p}coinflip\` \`${p}roll [sides]\``,
+          `┃ \`${p}joke\` \`${p}roast @user\` \`${p}compliment @user\` \`${p}rps [pick]\``,
+          `┃ \`${p}mood\` \`${p}vibecheck [@user]\` \`${p}choose [options]\``,
+          `┃ 🎯 **Games**`,
+          `┃ \`${p}poll\` \`${p}ship @user @user\` \`${p}rate [thing]\` \`${p}fight @user\``,
+          `┃ \`${p}roulette\` \`${p}trivia\` \`${p}truth\` \`${p}dare\` \`${p}wyr\``,
+          `┃ 🪄 **Chaos Tools**`,
+          `┃ \`${p}highfive\` \`${p}hug\` \`${p}slap @user\` \`${p}mock [text]\` \`${p}uwu [text]\``,
+          `┃ \`${p}emojify [text]\` \`${p}encode [text]\` \`${p}decode [text]\` \`${p}calc [math]\``,
+          `┃ 🏆 **Server Progress**`,
+          `┃ \`${p}rank\` / \`${p}level\` — view XP · \`${p}leaderboard\` — top 10`,
+          `┃ \`${p}avatar [@user]\` \`${p}userinfo [@user]\` \`${p}serverinfo\` \`${p}invite\``,
           "",
-          `**💎 Premium Only** *(grant with \`,wgowner premium add @user\`)*`,
-          `\`fortune\` \`vip\` \`advice\` \`story [topic]\``,
+          `╭━━━ 💎 **VIP LOUNGE** ━━━╮`,
+          `┃ \`${p}fortune\` \`${p}vip\` \`${p}advice\` \`${p}story [topic]\``,
+          `┃ \`${p}oracle\` \`${p}daily\` \`${p}compat @user\` \`${p}vipstats\` \`${p}heist\``,
+          `┃ *VIP access is granted by the owner.*`,
           "",
-          `**🤖 AI Chat** — mention @Weird Guy to chat`,
-          `\`${p}aimode [mode]\` — modes: ${config.VALID_MODES.map(m => `\`${m}\``).join(" ")}`,
+          `╭━━━ 🤖 **AI LAB** ━━━╮`,
+          `┃ Mention **@Weird Guy** to chat`,
+          `┃ \`${p}aimode [mode]\` — ${config.VALID_MODES.map(m => `\`${m}\``).join(" ")}`,
+          `┃ \`${p}config response <short|normal|paragraph>\` — server reply size`,
           "",
-          `**🛡️ Admin Commands** *(Administrator only)*`,
-          `\`kick\` \`ban\` \`softban\` \`unban\` \`mute\` \`unmute\` \`timeout\``,
-          `\`warn\` \`warnings\` \`clearwarns\``,
-          `\`clear\` \`purge\` \`slowmode\` \`lock\` \`unlock\` \`lockall\` \`unlockall\``,
-          `\`nuke\` \`dehoist\` \`role add/remove\` \`modnote\` \`notes\` \`raidmode\``,
-          `\`aiclear\` \`config\``,
+          `╭━━━ 🛡️ **ADMIN TOOLKIT** ━━━╮`,
+          `┃ \`${p}kick\` \`${p}ban\` \`${p}softban\` \`${p}unban\` \`${p}mute\` \`${p}unmute\``,
+          `┃ \`${p}warn\` \`${p}warnings\` \`${p}unwarn\` \`${p}clearwarns\``,
+          `┃ \`${p}clear\` \`${p}purge\` \`${p}slowmode\` \`${p}lock\` \`${p}unlock\``,
+          `┃ \`${p}announce #channel [message]\` \`${p}nick @user [name]\` \`${p}topic [text]\``,
+          `┃ \`${p}serverstats\` \`${p}roleinfo @role\` \`${p}memberinfo @user\` \`${p}channelinfo\``,
+          `┃ \`${p}config\` — server-only settings`,
           "",
-          `**👑 Owner Only** — \`${p}owner [subcommand]\``,
-          `\`stats\` \`guilds\` \`broadcast\` \`invite\` \`dm\` \`reload\` \`premium\``,
+          `╭━━━ 👑 **OWNER CONTROL ROOM** ━━━╮`,
+          `┃ \`${p}owner overview\` \`${p}owner status\` \`${p}owner directive\` \`${p}owner chaos\``,
+          `┃ \`${p}owner delegate add/remove/list\` — temporary scoped access`,
+          `┃ \`${p}owner premium add/remove/list\` \`${p}owner broadcast\` \`${p}owner reset\``,
           "",
-          `Tip: use \`,wg [command]\` OR mention @Weird Guy [command].`,
+          `╰━━━ ✨ Use \`${p}[command]\` or mention @Weird Guy ✨ ━━━╯`,
         ].join("\n"));
         break;
 

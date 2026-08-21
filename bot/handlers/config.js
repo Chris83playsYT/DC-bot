@@ -1,5 +1,9 @@
-const VALID_MODES = ["intellectual", "normal", "crazy", "relaxed", "depressed", "flow"];
 const storage = require("./storage");
+const VALID_MODES = [
+  "normal", "intellectual", "crazy", "relaxed", "depressed", "flow",
+  "cringe", "hype", "chaotic-good", "therapist", "villain", "grandparent",
+  "gremlin", "pirate", "detective", "comedian", "npc", "oracle", "coach", "deadpan",
+];
 
 const DEFAULT = () => ({
   prefix: ",wg",
@@ -22,10 +26,11 @@ const DEFAULT = () => ({
   ],
   aiChat: true,
   aiMode: "normal",
-  aiModel: "x-ai/grok-4.5",
+  aiModel: "google/gemini-2.5-flash",
   aiTemperature: 0.85,
   aiMaxHistory: 12,
   aiCooldownMs: 2500,
+  responseLength: "normal",
   adminRoleIds: [],
   logChannelId: null,
   raidMode: false,
@@ -40,7 +45,7 @@ const DEFAULT = () => ({
   },
 });
 
-let botOwnerId = null;
+let botOwnerId = storage.state.ownerProfile?.id || null;
 
 function mergeConfig(saved) {
   const base = DEFAULT();
@@ -50,18 +55,32 @@ function mergeConfig(saved) {
   result.badWords = Array.isArray(saved?.badWords) ? saved.badWords : base.badWords;
   result.warnThresholds = Array.isArray(saved?.warnThresholds) ? saved.warnThresholds : base.warnThresholds;
   result.adminRoleIds = Array.isArray(saved?.adminRoleIds) ? saved.adminRoleIds : [];
+  result.responseLength = ["short", "normal", "paragraph"].includes(result.responseLength)
+    ? result.responseLength
+    : "normal";
   return result;
 }
 
 module.exports = {
-  VALID_MODES: [
-    "normal", "intellectual", "crazy", "relaxed", "depressed", "flow",
-    "cringe", "hype", "chaotic-good", "therapist", "villain", "grandparent",
-  ],
+  VALID_MODES,
+  RESPONSE_LENGTHS: ["short", "normal", "paragraph"],
 
-  setOwner(id) { botOwnerId = id; },
-  isOwner(userId) { return botOwnerId && userId === botOwnerId; },
+  setOwner(id, profile = {}) {
+    if (!id) return;
+    botOwnerId = id;
+    const previous = storage.state.ownerProfile || {};
+    storage.state.ownerProfile = {
+      ...previous,
+      id,
+      username: profile.username || previous.username || null,
+      tag: profile.tag || previous.tag || null,
+      savedAt: previous.savedAt || new Date().toISOString(),
+    };
+    storage.save();
+  },
+  isOwner(userId) { return Boolean(botOwnerId && userId === botOwnerId); },
   getOwnerId() { return botOwnerId; },
+  getOwnerProfile() { return storage.state.ownerProfile; },
 
   get(guildId) {
     const configs = storage.state.configs;
@@ -83,6 +102,13 @@ module.exports = {
   setAiMode(guildId, mode) {
     if (!VALID_MODES.includes(mode)) return false;
     this.get(guildId).aiMode = mode;
+    storage.save();
+    return true;
+  },
+
+  setResponseLength(guildId, length) {
+    if (!this.RESPONSE_LENGTHS.includes(length)) return false;
+    this.get(guildId).responseLength = length;
     storage.save();
     return true;
   },
@@ -121,6 +147,7 @@ module.exports = {
       `**Prefix:** \`${c.prefix}\``,
       `**AI Chat:** ${c.aiChat ? "✅ on" : "❌ off"} | **AI Mode:** \`${c.aiMode}\``,
       `**AI Model:** \`${c.aiModel}\``,
+      `**AI Response Length:** \`${c.responseLength}\``,
       `**Admin Roles:** ${c.adminRoleIds.length ? c.adminRoleIds.map(id => `<@&${id}>`).join(", ") : "Discord Administrator roles"}`,
       `**Levels:** ${c.levels.enabled ? `✅ on (${c.levels.xpPerMessage}–${c.levels.xpPerMessage + c.levels.xpBonusMax} XP/message)` : "❌ off"}`,
       `**Log Channel:** ${c.logChannelId ? `<#${c.logChannelId}>` : "not set"}`,

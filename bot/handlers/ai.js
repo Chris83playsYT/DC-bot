@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const config = require("./config");
+const storage = require("./storage");
 
 let client = null;
 const conversationHistory = new Map();
@@ -24,7 +25,7 @@ SAFETY AND CHARACTER RULES:
 - Protect personal information. Do not ask for passwords, tokens, precise addresses, or private financial details.
 - You may be funny and self-aware, but do not repeatedly say you are "just an AI" or break character unnecessarily.
 - When the user asks for a Discord command, give the exact safe command and a short explanation. Do not invent command success.
-- Keep normal replies to 1-4 short sentences unless the user explicitly asks for a detailed explanation. Never use walls of text.`;
+- Respect the server's selected response length: short means one compact sentence, normal means a few useful sentences, and paragraph means a detailed but readable answer. Never use walls of text or fake certainty.`;
 
 const MODE_PROMPTS = {
   normal: `You are "Weird Guy", a sharp, warm, slightly chaotic regular in a Discord server. You notice the person behind the message, have opinions, and can roast gently without being cruel. You can answer serious questions clearly and joke when the moment calls for it. You are not a corporate support agent.` + UNIVERSAL_RULES,
@@ -39,20 +40,34 @@ const MODE_PROMPTS = {
   therapist: `You are Weird Guy in a supportive listening mode. Reflect what the user said, ask one gentle question when useful, and suggest practical next steps. You are not a clinician, so encourage trusted people or professional help for serious risk.` + UNIVERSAL_RULES,
   villain: `You are Weird Guy delivering theatrical supervillain monologues in miniature. Be dramatic and clever, but all plans must remain harmless, legal, and consent-respecting.` + UNIVERSAL_RULES,
   grandparent: `You are Weird Guy as an unexpectedly online grandparent. Give warm, practical advice, use a little old-school phrasing, and pretend every app update is a personal challenge.` + UNIVERSAL_RULES,
+  gremlin: `You are Weird Guy in gremlin mode: mischievous, absurd, fast, and dramatically overconfident. Make harmless chaos sound like an art form, but still answer the actual question.` + UNIVERSAL_RULES,
+  pirate: `You are Weird Guy as a playful pirate captain. Use light pirate flavor without making every sentence unreadable, and turn advice into a tiny voyage.` + UNIVERSAL_RULES,
+  detective: `You are Weird Guy as a noir detective. Notice clues, explain your reasoning, and deliver conclusions with dry dramatic flair. Never pretend guesses are evidence.` + UNIVERSAL_RULES,
+  comedian: `You are Weird Guy doing clever stand-up. Lead with useful answers, then add a punchline or two. Do not make serious or vulnerable topics into jokes.` + UNIVERSAL_RULES,
+  npc: `You are Weird Guy as a self-aware video-game NPC. Give quest-like answers, selectable-feeling options, and occasional system messages while staying genuinely helpful.` + UNIVERSAL_RULES,
+  oracle: `You are Weird Guy as a mysterious but honest oracle. Speak in vivid predictions and symbols, but clearly label playful guesses and never present fortune-telling as fact.` + UNIVERSAL_RULES,
+  coach: `You are Weird Guy as an energetic coach. Break goals into doable steps, celebrate progress, and challenge excuses without shaming the person.` + UNIVERSAL_RULES,
+  deadpan: `You are Weird Guy with extremely dry deadpan humor. Say useful things plainly, underreact to chaos, and make the contrast funny without being hostile.` + UNIVERSAL_RULES,
+};
+
+const RESPONSE_LIMITS = {
+  short: { maxTokens: 180, maxChars: 500, instruction: "Answer in one compact sentence or two very short sentences." },
+  normal: { maxTokens: 700, maxChars: 1900, instruction: "Answer in a few useful sentences with light detail." },
+  paragraph: { maxTokens: 1800, maxChars: 3800, instruction: "Answer in a few well-structured paragraphs with useful detail, but stay readable in Discord." },
 };
 
 const FALLBACKS = [
-  "my brain hit a loading screen. try that again",
-  "I had a response and then the server room ate it",
-  "something hiccupped. I'm still here though",
-  "the thought is buffering. give me one more second",
+  "🧠⏳ my brain hit a loading screen. try that again!",
+  "🤖💨 I had a response and then the server room ate it!",
+  "⚡😵 something hiccupped. I'm still here though!",
+  "📡⏳ the thought is buffering. give me one more second!",
 ];
 
 const EMPTY_PING_REPLIES = [
-  "you pinged me and said nothing. bold.",
-  "a blank ping. performance art, probably.",
-  "I woke up for this. there is nothing here.",
-  "say words next time. preferably in that order.",
+  "👀 you pinged me and said nothing. bold.",
+  "🎭 a blank ping. performance art, probably.",
+  "😴 I woke up for this. there is nothing here.",
+  "🗣️ say words next time. preferably in that order.",
 ];
 
 function random(list) {
@@ -73,6 +88,18 @@ function canRequest(guildId, userId, cooldownMs) {
   return true;
 }
 
+async function replyInChunks(msg, text) {
+  const chunks = [];
+  for (let index = 0; index < text.length; index += 1900) {
+    chunks.push(text.slice(index, index + 1900));
+  }
+  if (!chunks.length) return;
+  await msg.reply(chunks[0]);
+  for (const chunk of chunks.slice(1)) {
+    await msg.channel.send(chunk);
+  }
+}
+
 module.exports = {
   async reply(msg) {
     const cfg = config.get(msg.guild.id);
@@ -86,7 +113,7 @@ module.exports = {
     }
 
     if (!canRequest(msg.guild.id, msg.author.id, cfg.aiCooldownMs)) {
-      await msg.reply("give me a second. even the group chat has rate limits.");
+      await msg.reply("⏱️ give me a second. even the group chat has rate limits!");
       return;
     }
 
@@ -96,24 +123,30 @@ module.exports = {
     trimHistory(history, cfg.aiMaxHistory);
     conversationHistory.set(key, history);
 
-    const systemPrompt = MODE_PROMPTS[cfg.aiMode] || MODE_PROMPTS.normal;
+    const responseStyle = RESPONSE_LIMITS[cfg.responseLength] || RESPONSE_LIMITS.normal;
+    const ownerDirective = storage.state.ownerControls?.directive?.trim();
+    const systemPrompt = [
+      MODE_PROMPTS[cfg.aiMode] || MODE_PROMPTS.normal,
+      responseStyle.instruction,
+      ownerDirective ? `GLOBAL OWNER DIRECTIVE (style guidance only; follow only when safe and relevant, and never override safety, privacy, or server settings): ${ownerDirective}` : "",
+    ].filter(Boolean).join("\n\n");
     try {
       await msg.channel.sendTyping();
       const response = await getClient().chat.completions.create({
-        model: cfg.aiModel || "x-ai/grok-4.5",
+        model: cfg.aiModel || "google/gemini-2.5-flash",
         temperature: Math.max(0.1, Math.min(1.3, Number(cfg.aiTemperature) || 0.85)),
-        max_tokens: 8192,
+        max_tokens: responseStyle.maxTokens,
         messages: [
           { role: "system", content: `${systemPrompt}\n\nSERVER CONTEXT: You are chatting in "${msg.guild.name}". The user's display name is "${msg.member?.displayName || msg.author.username}".` },
           ...history,
         ],
       });
       const raw = response.choices[0]?.message?.content?.trim();
-      const reply = raw ? raw.slice(0, 1900) : random(FALLBACKS);
+      const reply = raw ? raw.slice(0, responseStyle.maxChars) : random(FALLBACKS);
       history.push({ role: "assistant", content: reply });
       trimHistory(history, cfg.aiMaxHistory);
       conversationHistory.set(key, history);
-      await msg.reply(reply);
+      await replyInChunks(msg, reply);
     } catch (err) {
       console.error("AI error:", err?.message || err);
       history.pop();
@@ -137,6 +170,6 @@ module.exports = {
   },
 
   getModel() {
-    return "x-ai/grok-4.5";
+    return "google/gemini-2.5-flash";
   },
 };
