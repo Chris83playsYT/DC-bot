@@ -53,7 +53,7 @@ const ADMIN_COMMANDS = [
   "lock","unlock","lockall","unlockall","nuke","dehoist",
   "role","modnote","notes","raidmode","setprefix","aiclear",
   "announce","nick","memberinfo","channelinfo",
-  "serverstats","roleinfo","unwarn","topic",
+  "serverstats","roleinfo","unwarn","topic","permissions","rolelist","audit",
 ];
 
 module.exports = {
@@ -78,6 +78,59 @@ module.exports = {
     }
 
     switch (baseCommand) {
+      case "permissions": {
+        const me = msg.guild.members.me || await msg.guild.members.fetchMe().catch(() => null);
+        if (!me) return msg.reply("⚠️ I couldn't inspect my server permissions.");
+        const important = [
+          ["Manage Messages", "ManageMessages"],
+          ["Moderate Members", "ModerateMembers"],
+          ["Kick Members", "KickMembers"],
+          ["Ban Members", "BanMembers"],
+          ["Manage Channels", "ManageChannels"],
+          ["Manage Roles", "ManageRoles"],
+          ["View Audit Log", "ViewAuditLog"],
+        ];
+        const lines = important.map(([label, flag]) =>
+          `${me.permissions.has(flag) ? "✅" : "❌"} ${label}`
+        );
+        return msg.reply([
+          `🛡️ **Weird Guy Permission Check — ${msg.guild.name}**`,
+          ...lines,
+          "",
+          "Missing permissions can make a command fail even when you have Administrator.",
+        ].join("\n"));
+      }
+
+      case "rolelist": {
+        const roles = [...msg.guild.roles.cache.values()]
+          .filter(role => role.id !== msg.guild.id)
+          .sort((a, b) => b.position - a.position)
+          .slice(0, 30);
+        const lines = roles.map(role =>
+          `${role.managed ? "🔗" : "🏷️"} <@&${role.id}> — **${role.members.size}** member(s)${role.hexColor !== "#000000" ? ` · ${role.hexColor}` : ""}`
+        );
+        return msg.reply([
+          `🏷️ **Role Directory — ${msg.guild.name}**`,
+          lines.join("\n") || "No custom roles found.",
+          roles.length >= 30 ? "*Showing the 30 highest roles.*" : "",
+        ].filter(Boolean).join("\n"));
+      }
+
+      case "audit": {
+        const warnings = Object.entries(storage.state.warnings)
+          .filter(([key]) => key.startsWith(`${msg.guild.id}:`));
+        const warningCount = warnings.reduce((sum, [, list]) => sum + list.length, 0);
+        const cfg = config.get(msg.guild.id);
+        return msg.reply([
+          `📋 **Admin Snapshot — ${msg.guild.name}**`,
+          `⚠️ Active warning records: **${warnings.length}** · Total warnings: **${warningCount}**`,
+          `🚨 Raid mode: **${cfg.raidMode ? "ON" : "OFF"}** · Auto-mod: **${cfg.automod.enabled ? "ON" : "OFF"}**`,
+          `🧠 AI chat: **${cfg.aiChat ? "ON" : "OFF"}** · Levels: **${cfg.levels.enabled ? "ON" : "OFF"}**`,
+          `📝 Log channel: ${cfg.logChannelId ? `<#${cfg.logChannelId}>` : "not configured"}`,
+          `👮 Admin roles: **${cfg.adminRoleIds.length}** configured`,
+        ].join("\n"));
+      }
+
       case "setprefix": {
         const p = args[0];
         if (!p || p.length > 5) return msg.reply("Provide a prefix (1–5 chars).");

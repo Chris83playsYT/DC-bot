@@ -133,6 +133,23 @@ const fortunes = [
   "Today is a good day to try something different. Or not. Free will is real.",
 ];
 
+const premiumQuotes = [
+  "Luxury is having a plan and still choosing chaos.",
+  "Your potential called. It says stop leaving it on read.",
+  "The room changes when you enter. Sometimes because you opened the wrong door.",
+  "A premium thought is just a normal thought with better lighting.",
+  "You are not behind. You are taking the scenic route with suspicious confidence.",
+];
+
+const auraLevels = [
+  ["✨", "radiant", "The server lighting improves when you arrive."],
+  ["🔥", "dangerously magnetic", "People are pretending not to notice. Poorly."],
+  ["🌙", "mysteriously composed", "You have said nothing and somehow won the room."],
+  ["⚡", "high-voltage", "Please ground yourself before touching the group chat."],
+  ["💎", "premium-grade", "Expensive energy. Questionable purchase decisions."],
+  ["🪩", "socially luminous", "The algorithm is confused but supportive."],
+];
+
 const rpsChoices = ["rock", "paper", "scissors"];
 const rpsWins = { rock: "scissors", paper: "rock", scissors: "paper" };
 
@@ -655,7 +672,60 @@ module.exports = {
         break;
       }
 
+      case "vipmenu":
+      case "premiumhelp": {
+        if (!premiumOnly(msg)) return;
+        const embed = new EmbedBuilder()
+          .setColor("#d4af37")
+          .setTitle("💎 Weird Guy Black Card Lounge")
+          .setDescription("Your premium access pass to the unnecessarily polished side of the bot.")
+          .addFields(
+            { name: "🔮 Insight", value: "`fortune` `oracle` `advice` `quote`", inline: true },
+            { name: "🎭 Social", value: "`aura` `compat` `vip`", inline: true },
+            { name: "🕶️ Chaos", value: "`heist` `daily` `story` `vipstats`", inline: true },
+          )
+          .setFooter({ text: "Premium access is global and granted by WeirdGuy." })
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
+      case "aura": {
+        if (!premiumOnly(msg)) return;
+        const target = msg.mentions.members?.first() || msg.member;
+        const score = deterministicPercent(target.id, "aura");
+        const [emoji, label, detail] = auraLevels[score % auraLevels.length];
+        msg.reply(`${emoji} **VIP Aura Scan: ${target.displayName}**\n${shipBar(score)} **${score}%** — **${label}**\n*${detail}*`);
+        break;
+      }
+
+      case "quote": {
+        if (!premiumOnly(msg)) return;
+        msg.reply(`💎 *Premium Quote Drop*\n> ${rand(premiumQuotes)}\n— **Weird Guy**`);
+        break;
+      }
+
       // ── INFO COMMANDS ────────────────────────────────────────────────
+      case "botinfo":
+      case "about": {
+        const embed = new EmbedBuilder()
+          .setColor("#ff6b35")
+          .setTitle("✨ About Weird Guy")
+          .setDescription("A playful, protective Discord companion built for useful tools, harmless chaos, and servers with personality.")
+          .addFields(
+            { name: "🎮 Fun", value: "Games, social commands, trivia, text tools, vibe checks, and leveling.", inline: true },
+            { name: "🛡️ Safety", value: "Auto-moderation, warnings, raid mode, logs, timeouts, and protected targets.", inline: true },
+            { name: "🤖 AI", value: "Mention Weird Guy for chat with 20 server-selectable personalities and 3 reply lengths.", inline: true },
+            { name: "💎 Premium", value: "VIP lounge commands, aura scans, fortunes, challenges, and premium stats.", inline: true },
+            { name: "⚙️ Server-first", value: "Prefixes, AI settings, automod, levels, and logs stay isolated to this server.", inline: true },
+            { name: "👑 Owner", value: "Global controls are Discord-owner verified and password-gated. Temporary access is scoped and expires.", inline: true },
+          )
+          .setFooter({ text: "Weird Guy • Weird, useful, and responsibly chaotic" })
+          .setTimestamp();
+        await msg.reply({ embeds: [embed] });
+        break;
+      }
+
       case "userinfo": {
         const target = msg.mentions.members?.first() || msg.member;
         const user = target.user;
@@ -768,9 +838,13 @@ module.exports = {
           `┃ \`${p}avatar [@user]\` \`${p}userinfo [@user]\` \`${p}serverinfo\` \`${p}invite\``,
           "",
           `╭━━━ 💎 **VIP LOUNGE** ━━━╮`,
-          `┃ \`${p}fortune\` \`${p}vip\` \`${p}advice\` \`${p}story [topic]\``,
-          `┃ \`${p}oracle\` \`${p}daily\` \`${p}compat @user\` \`${p}vipstats\` \`${p}heist\``,
+          `┃ \`${p}vipmenu\` \`${p}fortune\` \`${p}vip\` \`${p}advice\` \`${p}quote\``,
+          `┃ \`${p}story [topic]\` \`${p}oracle\` \`${p}daily\` \`${p}aura [@user]\``,
+          `┃ \`${p}compat @user\` \`${p}vipstats\` \`${p}heist\``,
           `┃ *VIP access is granted by the owner.*`,
+          "",
+          `╭━━━ ℹ️ **BOT INFO** ━━━╮`,
+          `┃ \`${p}botinfo\` / \`${p}about\` — features, privacy, and control boundaries`,
           "",
           `╭━━━ 🤖 **AI LAB** ━━━╮`,
           `┃ Mention **@Weird Guy** to chat`,
@@ -782,7 +856,8 @@ module.exports = {
           `┃ \`${p}warn\` \`${p}warnings\` \`${p}unwarn\` \`${p}clearwarns\``,
           `┃ \`${p}clear\` \`${p}purge\` \`${p}slowmode\` \`${p}lock\` \`${p}unlock\``,
           `┃ \`${p}announce #channel [message]\` \`${p}nick @user [name]\` \`${p}topic [text]\``,
-          `┃ \`${p}serverstats\` \`${p}roleinfo @role\` \`${p}memberinfo @user\` \`${p}channelinfo\``,
+          `┃ \`${p}serverstats\` \`${p}roleinfo @role\` \`${p}rolelist\` \`${p}memberinfo @user\``,
+          `┃ \`${p}permissions\` \`${p}audit\` — bot access and moderation snapshot`,
           `┃ \`${p}config\` — server-only settings`,
           "",
           `╭━━━ 👑 **OWNER CONTROL ROOM** ━━━╮`,

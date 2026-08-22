@@ -186,16 +186,16 @@
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 485,
-        "messages": 32,
-        "commands": 3,
-        "lastAwardAt": 1787313491020
+        "xp": 758,
+        "messages": 50,
+        "commands": 4,
+        "lastAwardAt": 1787315328329
       },
       "1332518492620197961": {
-        "xp": 471,
-        "messages": 33,
-        "commands": 1,
-        "lastAwardAt": 1787313781680
+        "xp": 696,
+        "messages": 50,
+        "commands": 2,
+        "lastAwardAt": 1787315454243
       },
       "1508551350349205544": {
         "xp": 135,
@@ -240,10 +240,10 @@
         "lastAwardAt": 1786237404880
       },
       "1534232581262938235": {
-        "xp": 100,
-        "messages": 6,
+        "xp": 118,
+        "messages": 7,
         "commands": 0,
-        "lastAwardAt": 1787313685073
+        "lastAwardAt": 1787315183429
       },
       "1539464842245578853": {
         "xp": 37,
@@ -273,7 +273,9 @@
       }
     }
   },
-  "premiumUsers": [],
+  "premiumUsers": [
+    "1332518492620197961"
+  ],
   "warnings": {},
   "modNotes": {},
   "ownerProfile": {
@@ -288,8 +290,8 @@
     "directive": "",
     "activity": {
       "mode": "custom",
-      "type": "streaming",
-      "text": "new update available!"
+      "type": "listening",
+      "text": "playing with my life, if I do have one?"
     }
   }
 }
