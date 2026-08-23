@@ -1,8 +1,12 @@
-// Deliberate one-shot launcher.
-//
-// This file intentionally does not restart the bot when it exits. The bot
-// should only be started again by an explicit workflow restart or by the
-// owner reset command.
+// Deliberate one-shot launcher with Render Web Server integration.
+const express = require('express');
+const app = express();
+const port = process.env.PORT || 10000;
+
+// Tiny web server to keep Render's free tier happy and awake
+app.get('/', (req, res) => res.send('Bot launcher is online!'));
+const server = app.listen(port, () => console.log(`[launcher] Keep-alive server on port ${port}`));
+
 const { spawn } = require("child_process");
 const path = require("path");
 
@@ -17,12 +21,16 @@ child.on("exit", (code, signal) => {
   } else {
     console.log(`[launcher] Bot stopped with code ${code ?? 0}. No automatic restart.`);
   }
-  process.exit(code ?? 0);
+  server.close(() => {
+    process.exit(code ?? 0);
+  });
 });
 
 child.on("error", (err) => {
   console.error("[launcher] Failed to start bot:", err?.message || err);
-  process.exit(1);
+  server.close(() => {
+    process.exit(1);
+  });
 });
 
 for (const signal of ["SIGTERM", "SIGINT"]) {
