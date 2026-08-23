@@ -98,7 +98,7 @@
         }
       ],
       "aiChat": true,
-      "aiMode": "normal",
+      "aiMode": "intellectual",
       "aiModel": "google/gemini-2.5-flash",
       "aiTemperature": 0.85,
       "aiMaxHistory": 12,
@@ -186,16 +186,16 @@
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 808,
-        "messages": 53,
-        "commands": 6,
-        "lastAwardAt": 1787448848138
+        "xp": 1171,
+        "messages": 76,
+        "commands": 16,
+        "lastAwardAt": 1787452685996
       },
       "1332518492620197961": {
-        "xp": 696,
-        "messages": 50,
+        "xp": 845,
+        "messages": 60,
         "commands": 2,
-        "lastAwardAt": 1787315454243
+        "lastAwardAt": 1787452770223
       },
       "1508551350349205544": {
         "xp": 135,
@@ -228,10 +228,10 @@
         "lastAwardAt": 1786132206265
       },
       "1473152415191793827": {
-        "xp": 79,
-        "messages": 6,
+        "xp": 91,
+        "messages": 7,
         "commands": 0,
-        "lastAwardAt": 1787448890796
+        "lastAwardAt": 1787449102389
       },
       "235925970953961473": {
         "xp": 12,

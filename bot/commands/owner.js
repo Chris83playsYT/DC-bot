@@ -341,6 +341,47 @@ async function execute(msg, args) {
       ].join("\n"));
     }
 
+    case "temporary": {
+      if (args[1]?.toLowerCase() !== "perms") {
+        return msg.reply("Usage: `,wgowner temporary perms @user 2h status`");
+      }
+
+      const target = msg.mentions.users?.first();
+      if (!target) return msg.reply("Usage: `,wgowner temporary perms @user 2h status`");
+
+      const mentionIndex = args.findIndex(value =>
+        value === `<@${target.id}>` || value === `<@!${target.id}>`
+      );
+      const duration = ownerAccess.parseDuration(args[mentionIndex + 1]);
+      if (!duration) return msg.reply("Choose a duration from `1m` to `30d`, such as `2h` or `7d`.");
+
+      const command = args[mentionIndex + 2]?.toLowerCase();
+      if (!command || command === "all") {
+        return msg.reply([
+          "Choose one command to grant.",
+          `Available commands: ${ownerAccess.GRANTABLE_SCOPES.map(scope => `\`${scope}\``).join(", ")}`,
+          "Usage: `,wgowner temporary perms @user 2h status`",
+        ].join("\n"));
+      }
+      if (!ownerAccess.GRANTABLE_SCOPES.includes(command)) {
+        return msg.reply(`That command cannot be delegated. Choose: ${ownerAccess.GRANTABLE_SCOPES.map(scope => `\`${scope}\``).join(", ")}`);
+      }
+
+      const result = ownerAccess.grant(
+        target.id,
+        duration,
+        [command],
+        msg.author.id,
+        { username: target.username, tag: target.tag },
+      );
+      if (!result.ok) return msg.reply(result.reason);
+      return msg.reply([
+        `✅ **${target.tag}** received temporary \`${command}\` permission.`,
+        `Expires in **${ownerAccess.formatDuration(duration)}**.`,
+        "They still cannot grant access, manage premium, broadcast, DM users, or stop the bot.",
+      ].join("\n"));
+    }
+
     case "broadcast": {
       const message = args.slice(1).join(" ");
       if (!message) return msg.reply("Usage: `,wgowner broadcast [message]`");
@@ -446,6 +487,7 @@ async function execute(msg, args) {
         "`ownerinfo` — show the remembered owner profile",
         "`chaos` — trigger an owner-only event in the current server",
         "`delegate add/remove/list` — grant selected owner features temporarily",
+         "`temporary perms @user 2h status` — grant one command temporarily",
         "`guilds` — list all servers",
         "`broadcast [message]` — message all servers",
         "`invite` — bot invite link",
