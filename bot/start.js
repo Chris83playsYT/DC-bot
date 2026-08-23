@@ -1,7 +1,7 @@
 // Deliberate one-shot launcher with Render Web Server integration.
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 10000;
+const port = process.env.PORT || 4000;
 
 // Tiny web server to keep Render's free tier happy and awake
 app.get('/', (req, res) => res.send('Bot launcher is online!'));
