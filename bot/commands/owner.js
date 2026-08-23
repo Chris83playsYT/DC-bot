@@ -382,6 +382,56 @@ async function execute(msg, args) {
       ].join("\n"));
     }
 
+    case "coowner": {
+      const action = args[1]?.toLowerCase();
+      const target = msg.mentions.users?.first();
+
+      if (action === "list") {
+        const grants = ownerAccess.listCoOwners();
+        if (!grants.length) return msg.reply("No temporary co-owners are active.");
+        return msg.reply([
+          "**👑 Temporary Co-Owners**",
+          ...grants.map(grant =>
+            `<@${grant.userId}> — **${ownerAccess.formatDuration(grant.expiresAt - Date.now())}** left`
+          ),
+        ].join("\n"));
+      }
+
+      if (!target) {
+        return msg.reply([
+          "Usage:",
+          "`,wgowner coowner @user 7d`",
+          "`,wgowner coowner remove @user`",
+          "`,wgowner coowner list`",
+        ].join("\n"));
+      }
+
+      if (action === "remove" || action === "revoke") {
+        const removed = ownerAccess.revokeCoOwner(target.id);
+        return msg.reply(removed
+          ? `✅ Co-owner access revoked from **${target.tag}**.`
+          : `ℹ️ **${target.tag}** was not an active co-owner.`);
+      }
+
+      const mentionIndex = args.findIndex(value =>
+        value === `<@${target.id}>` || value === `<@!${target.id}>`
+      );
+      const duration = ownerAccess.parseDuration(args[mentionIndex + 1]);
+      if (!duration) return msg.reply("Choose a duration from `1m` to `30d`, such as `7d`.");
+
+      const grant = ownerAccess.grantCoOwner(
+        target.id,
+        duration,
+        msg.author.id,
+        { username: target.username, tag: target.tag },
+      );
+      return msg.reply([
+        `✅ **${target.tag}** is now a temporary co-owner.`,
+        `Expires in **${ownerAccess.formatDuration(grant.expiresAt - Date.now())}**.`,
+        "They can use owner commands, but only you can grant or revoke co-owner access.",
+      ].join("\n"));
+    }
+
     case "broadcast": {
       const message = args.slice(1).join(" ");
       if (!message) return msg.reply("Usage: `,wgowner broadcast [message]`");
@@ -488,6 +538,8 @@ async function execute(msg, args) {
         "`chaos` — trigger an owner-only event in the current server",
         "`delegate add/remove/list` — grant selected owner features temporarily",
          "`temporary perms @user 2h status` — grant one command temporarily",
+         "`coowner @user 7d` — grant full owner access temporarily",
+         "`coowner remove/list` — manage temporary co-owners",
         "`guilds` — list all servers",
         "`broadcast [message]` — message all servers",
         "`invite` — bot invite link",
@@ -509,8 +561,18 @@ module.exports = {
       ownerprofile: "ownerinfo",
     })[args[0]?.toLowerCase()] || args[0]?.toLowerCase();
 
-    // The real owner always uses the password gate. A delegate can only use
-    // an explicitly granted, low-risk scope and can never grant more access.
+    // The real owner always uses the password gate. Co-owners get the owner
+    // command set, but cannot manage access grants. Limited delegates can
+    // only use explicitly granted, low-risk scopes.
+    if (!config.isOwner(msg.author.id) && ownerAccess.hasCoOwner(msg.author.id)) {
+      if (["coowner", "delegate", "temporary"].includes(requestedScope)) {
+        await msg.reply("🔒 Only the verified bot owner can grant or revoke owner access.");
+        return true;
+      }
+      await execute(msg, args);
+      return true;
+    }
+
     if (!config.isOwner(msg.author.id)) {
       if (!ownerAccess.hasScope(msg.author.id, requestedScope)) {
         await msg.reply("🔒 Owner-only command. You do not have a temporary grant for this feature.");

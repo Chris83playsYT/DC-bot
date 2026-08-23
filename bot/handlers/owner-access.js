@@ -26,11 +26,18 @@ const SCOPE_LABELS = {
 
 function clean() {
   const delegates = storage.state.ownerDelegates;
+  const coOwners = storage.state.ownerCoOwners;
   const now = Date.now();
   let changed = false;
   for (const [userId, grant] of Object.entries(delegates)) {
     if (!grant || grant.expiresAt <= now) {
       delete delegates[userId];
+      changed = true;
+    }
+  }
+  for (const [userId, grant] of Object.entries(coOwners)) {
+    if (!grant || grant.expiresAt <= now) {
+      delete coOwners[userId];
       changed = true;
     }
   }
@@ -84,6 +91,45 @@ function list() {
   return Object.values(clean());
 }
 
+function grantCoOwner(userId, durationMs, grantedBy, profile = {}) {
+  const duration = Math.max(60_000, Math.min(30 * 86_400_000, durationMs));
+  const expiresAt = Date.now() + duration;
+  storage.state.ownerCoOwners[userId] = {
+    userId,
+    username: profile.username || null,
+    tag: profile.tag || null,
+    grantedBy,
+    grantedAt: new Date().toISOString(),
+    expiresAt,
+  };
+  storage.save();
+  return storage.state.ownerCoOwners[userId];
+}
+
+function revokeCoOwner(userId) {
+  const existed = Boolean(cleanCoOwners()[userId]);
+  delete storage.state.ownerCoOwners[userId];
+  storage.save();
+  return existed;
+}
+
+function cleanCoOwners() {
+  clean();
+  return storage.state.ownerCoOwners;
+}
+
+function getCoOwner(userId) {
+  return cleanCoOwners()[userId] || null;
+}
+
+function hasCoOwner(userId) {
+  return Boolean(getCoOwner(userId));
+}
+
+function listCoOwners() {
+  return Object.values(cleanCoOwners());
+}
+
 function formatDuration(ms) {
   const minutes = Math.max(1, Math.ceil(ms / 60_000));
   if (minutes < 60) return `${minutes}m`;
@@ -110,6 +156,11 @@ module.exports = {
   get,
   hasScope,
   list,
+  grantCoOwner,
+  revokeCoOwner,
+  getCoOwner,
+  hasCoOwner,
+  listCoOwners,
   normalizeScopes,
   formatDuration,
   parseDuration,

@@ -17,6 +17,7 @@ function defaultState() {
     modNotes: {},
     ownerProfile: null,
     ownerDelegates: {},
+    ownerCoOwners: {},
     ownerControls: {
       directive: "",
       activity: {
@@ -46,6 +47,7 @@ function ensureLoaded() {
     modNotes: state.modNotes && typeof state.modNotes === "object" ? state.modNotes : {},
     ownerProfile: state.ownerProfile && typeof state.ownerProfile === "object" ? state.ownerProfile : null,
     ownerDelegates: state.ownerDelegates && typeof state.ownerDelegates === "object" ? state.ownerDelegates : {},
+    ownerCoOwners: state.ownerCoOwners && typeof state.ownerCoOwners === "object" ? state.ownerCoOwners : {},
     ownerControls: {
       ...defaultState().ownerControls,
       ...(state.ownerControls && typeof state.ownerControls === "object" ? state.ownerControls : {}),

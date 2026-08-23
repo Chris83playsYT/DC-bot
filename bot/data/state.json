@@ -186,16 +186,16 @@
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 1171,
-        "messages": 76,
+        "xp": 1232,
+        "messages": 81,
         "commands": 16,
-        "lastAwardAt": 1787452685996
+        "lastAwardAt": 1787453113837
       },
       "1332518492620197961": {
-        "xp": 845,
-        "messages": 60,
-        "commands": 2,
-        "lastAwardAt": 1787452770223
+        "xp": 880,
+        "messages": 62,
+        "commands": 3,
+        "lastAwardAt": 1787453207476
       },
       "1508551350349205544": {
         "xp": 135,
@@ -285,7 +285,20 @@
     "savedAt": "2026-08-09T01:02:22.315Z",
     "displayName": "chrisv_yes"
   },
-  "ownerDelegates": {},
+  "ownerDelegates": {
+    "1332518492620197961": {
+      "userId": "1332518492620197961",
+      "username": "chrxmeelst",
+      "tag": "chrxmeelst",
+      "scopes": [
+        "chaos"
+      ],
+      "grantedBy": "1385955123225825402",
+      "grantedAt": "2026-08-23T02:43:46.871Z",
+      "expiresAt": 1787456626871
+    }
+  },
+  "ownerCoOwners": {},
   "ownerControls": {
     "directive": "",
     "activity": {
