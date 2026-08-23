@@ -9,7 +9,6 @@ const automod = require("./handlers/automod");
 const ai = require("./handlers/ai");
 const config = require("./handlers/config");
 const events = require("./handlers/events");
-const keepalive = require("./handlers/keepalive");
 const levels = require("./handlers/levels");
 const storage = require("./handlers/storage");
 const presence = require("./handlers/presence");
