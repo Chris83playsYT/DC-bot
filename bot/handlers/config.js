@@ -46,7 +46,7 @@ const DEFAULT = () => ({
 });
 
 let botOwnerId = storage.state.ownerProfile?.id || null;
-const BOT_OWNER_NAME = "WeirdGuy";
+const BOT_OWNER_NAME = "chrisv_yes";
 
 function mergeConfig(saved) {
   const base = DEFAULT();
@@ -97,6 +97,9 @@ module.exports = {
   },
 
   getPrefix(guildId) { return this.get(guildId).prefix; },
+  getPrefixes(guildId) {
+    return [...new Set([this.get(guildId).prefix, "!wg", ",wg"])];
+  },
   setPrefix(guildId, p) {
     this.get(guildId).prefix = p;
     storage.save();

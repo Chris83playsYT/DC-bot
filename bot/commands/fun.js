@@ -244,6 +244,25 @@ function premiumOnly(msg) {
   return false;
 }
 
+async function replyChunks(msg, text, limit = 1900) {
+  const chunks = [];
+  let current = "";
+  for (const line of String(text).split("\n")) {
+    if (line.length > limit) {
+      if (current) { chunks.push(current); current = ""; }
+      for (let i = 0; i < line.length; i += limit) chunks.push(line.slice(i, i + limit));
+      continue;
+    }
+    if (current && current.length + line.length + 1 > limit) {
+      chunks.push(current);
+      current = "";
+    }
+    current += `${current ? "\n" : ""}${line}`;
+  }
+  if (current) chunks.push(current);
+  for (const chunk of chunks) await msg.reply(chunk);
+}
+
 // ── MAIN EXPORT ───────────────────────────────────────────────────────────────
 
 module.exports = {
@@ -821,8 +840,9 @@ module.exports = {
       }
 
       case "help":
-        msg.reply([
+        await replyChunks(msg, [
           `╭━━━ 🎮 **WEIRD GUY ARCADE** ━━━╮`,
+          `┃ ⚡ Prefixes: \`!wg\` and \`,wg\` both work`,
           `┃ 🎲 **Quick Play**`,
           `┃ \`${p}weirdguy\` \`${p}8ball [question]\` \`${p}coinflip\` \`${p}roll [sides]\``,
           `┃ \`${p}joke\` \`${p}roast @user\` \`${p}compliment @user\` \`${p}rps [pick]\``,

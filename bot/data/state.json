@@ -178,18 +178,18 @@
   "levels": {
     "1503421306643808518": {
       "1385955123225825402": {
-        "xp": 237,
-        "messages": 12,
-        "commands": 10,
-        "lastAwardAt": 1786238084942
+        "xp": 311,
+        "messages": 16,
+        "commands": 15,
+        "lastAwardAt": 1787418016310
       }
     },
     "1463346110566502443": {
       "1385955123225825402": {
-        "xp": 758,
-        "messages": 50,
-        "commands": 4,
-        "lastAwardAt": 1787315328329
+        "xp": 808,
+        "messages": 53,
+        "commands": 6,
+        "lastAwardAt": 1787448848138
       },
       "1332518492620197961": {
         "xp": 696,
@@ -228,10 +228,10 @@
         "lastAwardAt": 1786132206265
       },
       "1473152415191793827": {
-        "xp": 53,
-        "messages": 4,
+        "xp": 79,
+        "messages": 6,
         "commands": 0,
-        "lastAwardAt": 1786132183292
+        "lastAwardAt": 1787448890796
       },
       "235925970953961473": {
         "xp": 12,
@@ -283,7 +283,7 @@
     "username": "chrisv_yes",
     "tag": "chrisv_yes",
     "savedAt": "2026-08-09T01:02:22.315Z",
-    "displayName": "WeirdGuy"
+    "displayName": "chrisv_yes"
   },
   "ownerDelegates": {},
   "ownerControls": {

@@ -133,6 +133,50 @@ async function execute(msg, args) {
       break;
     }
 
+    case "confetti":
+    case "celebrate": {
+      const bursts = ["🎉✨🎊", "💎🥳✨", "🚀🌟🎉", "🪩💫🎆"];
+      await msg.channel.send(`${bursts[Math.floor(Math.random() * bursts.length)]} **OWNER EVENT** ${bursts[Math.floor(Math.random() * bursts.length)]}\nThe luxury Weird Guy celebration protocol has been activated by **${config.getOwnerName()}**.`);
+      await msg.reply("✅ Confetti protocol deployed.");
+      break;
+    }
+
+    case "ownerroast":
+    case "roast": {
+      const target = msg.mentions.members?.first();
+      const subject = target ? target.displayName : "this entire server";
+      const roasts = [
+        "has the confidence of a genius and the tabs of a raccoon.",
+        "is running on vibes, three unfinished plans, and one suspicious snack.",
+        "could win an argument with a mirror and still lose the plot.",
+        "is not chaotic; chaos is simply taking notes.",
+      ];
+      await msg.channel.send(`🔥 **Owner Roast Cannon:** ${subject} ${roasts[Math.floor(Math.random() * roasts.length)]}`);
+      break;
+    }
+
+    case "ownerpraise":
+    case "praise": {
+      const target = msg.mentions.members?.first();
+      const subject = target ? `<@${target.id}>` : "this server";
+      await msg.channel.send(`🏆 **Luxury Recognition Notice:** ${subject} has been officially declared **premium-grade excellent** by ${config.getOwnerName()}.`);
+      break;
+    }
+
+    case "prank": {
+      const target = msg.mentions.members?.first();
+      const subject = target ? `<@${target.id}>` : "everyone";
+      await msg.channel.send(`👀 **Harmless Prank Alert:** ${subject}, Weird Guy has announced that you are now responsible for the server's vibes. Please accept this imaginary promotion.`);
+      break;
+    }
+
+    case "dice": {
+      const sides = Math.min(100, Math.max(2, Number.parseInt(args[1], 10) || 20));
+      const roll = Math.floor(Math.random() * sides) + 1;
+      await msg.reply(`🎲 **Owner's luxury d${sides} roll:** **${roll}** — ${roll === sides ? "critical success." : "the dice have spoken."}`);
+      break;
+    }
+
     case "status":
     case "presence": {
       const action = args[1]?.toLowerCase();
@@ -392,6 +436,10 @@ async function execute(msg, args) {
         "`say [message]` — owner voice message without the command",
         "`announce [message]` — luxury announcement embed",
         "`whoami` — confirm Weird Guy's owner identity",
+        "`confetti` / `celebrate` — trigger a luxury server event",
+        "`roast [@user]` / `praise [@user]` — owner-only social cannon",
+        "`prank [@user]` — harmless owner announcement",
+        "`dice [sides]` — roll a fancy owner die",
         "`stats` — bot stats and uptime",
         "`status [type] [text]` — set the global bot presence; `status rotate` resets it",
         "`directive [text|clear]` — set a global AI instruction",

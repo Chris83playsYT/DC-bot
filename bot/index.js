@@ -13,6 +13,8 @@ const keepalive = require("./handlers/keepalive");
 const levels = require("./handlers/levels");
 const storage = require("./handlers/storage");
 const presence = require("./handlers/presence");
+const commandQueues = new Map();
+const seenMessages = new Map();
 
 // Start keep-alive HTTP server (ping /ping with UptimeRobot)
 keepalive.start();
@@ -41,7 +43,7 @@ client.on("clientReady", async () => {
       config.setOwner(ownerId, {
         username: ownerObj.user?.username || ownerObj.username,
         tag: ownerObj.user?.tag || ownerObj.tag,
-        displayName: "WeirdGuy",
+        displayName: "chrisv_yes",
       });
       console.log(`Bot owner set: ${ownerId}`);
     }
@@ -49,6 +51,21 @@ client.on("clientReady", async () => {
     console.error("Could not fetch bot owner:", err?.message);
   }
 });
+
+function runCommandSerially(key, task) {
+  const previous = commandQueues.get(key) || Promise.resolve();
+  const next = previous.catch(() => {}).then(task).finally(() => {
+    if (commandQueues.get(key) === next) commandQueues.delete(key);
+  });
+  commandQueues.set(key, next);
+  return next;
+}
+
+function getCommandPrefix(content, guildId) {
+  return config.getPrefixes(guildId)
+    .sort((a, b) => b.length - a.length)
+    .find(prefix => content.startsWith(prefix)) || null;
+}
 
 // Route a parsed command string through all handlers.
 async function routeCommand(msg, commandText, guildPrefix) {
@@ -82,6 +99,9 @@ client.on("messageCreate", async (msg) => {
   try {
     if (msg.author.bot) return;
     if (!msg.guild) return;
+    if (seenMessages.has(msg.id)) return;
+    seenMessages.set(msg.id, true);
+    setTimeout(() => seenMessages.delete(msg.id), 30_000);
 
     const blocked = await automod.check(msg);
     if (blocked) return;
@@ -95,12 +115,15 @@ client.on("messageCreate", async (msg) => {
       const stripped = msg.content.replace(botMentionRegex, "").trim();
 
       if (stripped) {
-        const commandText = stripped.startsWith(guildPrefix)
-          ? stripped.slice(guildPrefix.length).trim()
+        const mentionPrefix = getCommandPrefix(stripped, msg.guild.id);
+        const commandText = mentionPrefix
+          ? stripped.slice(mentionPrefix.length).trim()
           : stripped;
 
         if (commandText) {
-          const claimed = await routeCommand(msg, commandText, guildPrefix);
+          const claimed = await runCommandSerially(`${msg.guild.id}:${msg.channel.id}`, () =>
+            routeCommand(msg, commandText, mentionPrefix || guildPrefix)
+          );
           if (claimed) return;
         }
       }
@@ -110,10 +133,13 @@ client.on("messageCreate", async (msg) => {
     }
 
     const content = msg.content.trim();
-    if (content.startsWith(guildPrefix)) {
-      const commandText = content.slice(guildPrefix.length).trim();
+    const commandPrefix = getCommandPrefix(content, msg.guild.id);
+    if (commandPrefix) {
+      const commandText = content.slice(commandPrefix.length).trim();
       if (commandText) {
-        await routeCommand(msg, commandText, guildPrefix);
+        await runCommandSerially(`${msg.guild.id}:${msg.channel.id}`, () =>
+          routeCommand(msg, commandText, commandPrefix)
+        );
         return;
       }
     }

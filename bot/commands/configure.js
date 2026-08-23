@@ -216,7 +216,7 @@ module.exports = {
         msg.reply([
           "**⚙️ Config Commands** — `,wgconfig [sub]`",
           "`show` — view all settings",
-          "`prefix <char>` — change command prefix",
+          "`prefix <char>` — change the custom prefix; `!wg` and `,wg` always remain active aliases",
           "`aichat <on|off>` — toggle AI on mention",
           "`aimode <mode>` — change AI personality mode",
            "`response <short|normal|paragraph>` — choose AI reply length for this server",
