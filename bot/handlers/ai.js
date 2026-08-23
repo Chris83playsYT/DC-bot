@@ -11,7 +11,7 @@ function getClient() {
   if (!client) {
     // hardcode the real URL and pull my real api key safely from Render, weirdguy fix your shit please.
     const baseURL = "https://openrouter.ai";
-    const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
     
     if (!apiKey) throw new Error("OpenRouter API Key is missing in Render Environment variables!");
     
