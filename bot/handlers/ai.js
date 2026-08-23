@@ -9,13 +9,17 @@ const MAX_MESSAGE_LENGTH = 2_000;
 
 function getClient() {
   if (!client) {
-    const baseURL = process.env.AI_INTEGRATIONS_OPENROUTER_BASE_URL;
+    // hardcode the real URL and pull my real api key safely from Render, weirdguy fix your shit please.
+    const baseURL = "https://openrouter.ai";
     const apiKey = process.env.AI_INTEGRATIONS_OPENROUTER_API_KEY;
-    if (!baseURL || !apiKey) throw new Error("Replit AI integration is not configured.");
+    
+    if (!apiKey) throw new Error("OpenRouter API Key is missing in Render Environment variables!");
+    
     client = new OpenAI({ baseURL, apiKey });
   }
   return client;
 }
+
 
 const UNIVERSAL_RULES = `
 
