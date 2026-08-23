@@ -1,11 +1,13 @@
 services:
-  - type: worker
+  - type: web
     name: weird-guy-discord-bot
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile
     startCommand: node bot/start.js
     envVars:
+      - key: PORT
+        value: 10000
       - key: TOKEN
         sync: false
       - key: OWNER_PASSWORD
